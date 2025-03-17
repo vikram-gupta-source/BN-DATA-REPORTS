@@ -15,7 +15,6 @@ run = ["python3", "main.py"]
 deploymentTarget = "cloudrun"
 
 [workflows]
-runButton = "Streamlit"
 
 [[workflows.workflow]]
 name = "Streamlit"
@@ -29,3 +28,7 @@ args = "streamlit run main.py"
 [[ports]]
 localPort = 8501
 externalPort = 80
+
+[[ports]]
+localPort = 8502
+externalPort = 3000
