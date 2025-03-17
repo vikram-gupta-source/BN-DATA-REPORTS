@@ -1,4 +1,5 @@
-{pkgs}: {
+
+{ pkgs }: {
   deps = [
     pkgs.tk
     pkgs.tcl
@@ -11,5 +12,7 @@
     pkgs.ffmpeg-full
     pkgs.cairo
     pkgs.glibcLocales
+    pkgs.dejavu_fonts
+    pkgs.liberation_ttf
   ];
 }
