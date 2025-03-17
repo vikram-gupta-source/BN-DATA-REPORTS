@@ -143,7 +143,7 @@ if option == 'Summary Report':
             'title_font_size': 11,
             'table_width': 8,
             'table_font_size': 11,
-            'title_space': 1.34
+            'title_space': 2.2
         },
         'All Active Clients (Plat & Preg) Summary Report': {
             'query': summary_query.activePregPlatClientSummaryQuery(),
@@ -177,7 +177,7 @@ if option == 'Summary Report':
             'title_font_size': 11,
             'table_width': 8,
             'table_font_size': 10.5,
-            'title_space': 0.95
+            'title_space': 1.4
         },
         'Half Time Feedback Summary Report': {
             'query': summary_query.halfTimeFeedbackSummaryQuery(),
