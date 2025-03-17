@@ -119,14 +119,14 @@ class summaryQueries:
             sl.assignedTo AS `Name`,
             SUM(CASE WHEN (sl.leadType = 'New') THEN 1 ELSE 0 END) AS
             totalNew,
-            SUM(CASE WHEN (sl.leadType = 'New' AND sl.sourcet = 'SMO') THEN 1 ELSE 0 END) AS
+            SUM(CASE WHEN (sl.leadType = 'New' AND sl.source_type = 'SMO') THEN 1 ELSE 0 END) AS
             newSMO,
-            SUM(CASE WHEN (sl.leadType = 'New' AND sl.sourcet = 'SME') THEN 1 ELSE 0 END) AS newSME,
+            SUM(CASE WHEN (sl.leadType = 'New' AND sl.source_type = 'SME') THEN 1 ELSE 0 END) AS newSME,
             SUM(CASE WHEN (sl.leadType = 'OL') THEN 1 ELSE 0 END) AS
             totalOl,
-            SUM(CASE WHEN (sl.leadType = 'OL' AND sl.sourcet = 'SMO') THEN 1 ELSE 0 END) 
+            SUM(CASE WHEN (sl.leadType = 'OL' AND sl.source_type = 'SMO') THEN 1 ELSE 0 END) 
             AS olSMO,
-            SUM(CASE WHEN (sl.leadType = 'OL' AND sl.sourcet = 'SME') THEN 1 ELSE 0 END) 
+            SUM(CASE WHEN (sl.leadType = 'OL' AND sl.source_type = 'SME') THEN 1 ELSE 0 END) 
             AS olSME
             FROM sociallead sl
             WHERE DATE(sl.created) BETWEEN DATE("{self.start_date}") AND DATE("{self.end_date}")

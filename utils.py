@@ -1508,7 +1508,7 @@ class salesAnalysisReport:
             'NAME', 'TOTAL', 'CONS', 'SALE', 'L:C%', 'C:S%', 'L:S%'
         ]]
 
-        smoData = smData[smData['sourcet'] == 'SMO']
+        smoData = smData[smData['source_type'] == 'SMO']
         smoLead = smoData[['NAME', 'TOTAL', 'CONS', 'SALE']]
         columns = [col for col in smoLead.columns if col not in ['NAME']]
         smoTotal = pd.DataFrame({
@@ -1541,7 +1541,7 @@ class salesAnalysisReport:
             'NAME', 'TOTAL', 'CONS', 'SALE', 'L:C%', 'C:S%', 'L:S%'
         ]]
 
-        smeData = smData[smData['sourcet'] == 'SME']
+        smeData = smData[smData['source_type'] == 'SME']
         smeLead = smeData[['NAME', 'TOTAL', 'CONS', 'SALE']]
         columns = [col for col in smeLead.columns if col not in ['NAME']]
         smeTotal = pd.DataFrame({
