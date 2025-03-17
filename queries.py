@@ -5064,123 +5064,65 @@ class analysisReportQuery:
 
   def counsellorSmLeadSummaryQuery(self):
     query = f'''
-        SELECT
+        SELECT 
         assignedTo AS `NAME`,
-        sourcet AS sub_source,
-        COUNT(assignedTo) AS `TOTAL`,
-        SUM(cons_status) AS `CONS`,
-        SUM(paid_status) AS `SALE` 
-        FROM
-        (SELECT
-          sl.*,
-          CASE WHEN (
-            SELECT
-              DATE(key_insight_date)
-            FROM
-              lead_action
-            WHERE
-              email = (
-                SELECT
-                  lm.email
-                FROM
-                  lead_management lm
-                WHERE
-                  RIGHT(
+        COUNT(DISTINCT leadNumber) AS `TOTAL`,
+        SUM(paid_status) AS `SALE`
+        FROM (SELECT 
+        sl.*,
+        CASE WHEN RIGHT(sl.sociallead_phone, 8) IN (
+            SELECT RIGHT(
+                REPLACE(
                     REPLACE(
-                      REPLACE(
                         REPLACE(
-                          REPLACE(
-                            REPLACE(lm.phone, '(', ''),
-                            ')',
+                            REPLACE(
+                                REPLACE(mobile_no1, '(', ''),
+                                ')',
+                                ''
+                            ),
+                            ' ',
                             ''
-                          ),
-                          ' ',
-                          ''
                         ),
                         '-',
                         ''
-                      ),
-                      '+',
-                      ''
                     ),
-                    8
-                  ) = RIGHT(sociallead_phone, 8)
-                ORDER BY
-                  lm.id DESC
-                LIMIT
-                  1
-              )
-            ORDER BY
-              id DESC
-            LIMIT
-              1
-          ) >= DATE('{self.start_date}') THEN 1 ELSE 0 END AS cons_status,
-          CASE WHEN RIGHT(sl.sociallead_phone, 8) IN (
-            SELECT
-              RIGHT(
+                    '+',
+                    ''
+                ),
+                8
+            )
+            FROM billing_details
+            INNER JOIN (
+                SELECT email_id AS email
+                FROM order_details
+                WHERE program_type = 0
+                AND DATE(date) >= DATE("{self.start_date}")
+            ) AS od2 ON od2.email = email_id
+        ) THEN 1 ELSE 0 END AS paid_status
+        FROM (
+            SELECT *,
+            REPLACE(
                 REPLACE(
-                  REPLACE(
                     REPLACE(
-                      REPLACE(
-                        REPLACE(mobile_no1, '(', ''),
-                        ')',
+                        REPLACE(
+                            REPLACE(leadNumber, '(', ''),
+                            ')',
+                            ''
+                        ),
+                        ' ',
                         ''
-                      ),
-                      ' ',
-                      ''
                     ),
                     '-',
                     ''
-                  ),
-                  '+',
-                  ''
-                ),
-                8
-              )
-            FROM
-              billing_details
-              INNER JOIN (
-                SELECT
-                  email_id AS email
-                FROM
-                  order_details
-                WHERE
-                  program_type = 0
-              ) AS od2 ON od2.email = email_id
-          ) THEN 1 ELSE 0 END AS paid_status
-        FROM
-          (
-            SELECT
-              *,
-              REPLACE(
-                REPLACE(
-                  REPLACE(
-                    REPLACE(
-                      REPLACE(leadNumber, '(', ''),
-                      ')',
-                      ''
-                    ),
-                    ' ',
-                    ''
-                  ),
-                  '-',
-                  ''
                 ),
                 '+',
                 ''
-              ) AS sociallead_phone
-            FROM
-              sociallead
-            WHERE leadType IN ('New', 'OL')
-          ) AS sl
-        WHERE
-          sl.assignedTo IN (
-            'Akansha', 'ShraddhaK', 'Krishna', 'Deeba', 'Barkha'
-          )
-          AND DATE(sl.created) BETWEEN DATE("{self.start_date}") AND DATE("{self.end_date}")
-            GROUP BY RIGHT(sl.sociallead_phone, 8)) AS sheet
-
-        GROUP BY assignedTo, sourcet
-
-        '''
+            ) AS sociallead_phone
+            FROM sociallead
+            WHERE DATE(created) BETWEEN DATE("{self.start_date}") AND DATE("{self.end_date}")
+        ) AS sl
+        WHERE sl.assignedTo IN ('Akansha', 'Krishna', 'Deeba', 'Barkha')
+        GROUP BY leadNumber) AS sheet
+        GROUP BY assignedTo
+    '''
     return query
