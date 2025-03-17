@@ -414,7 +414,7 @@ def socialMediaNewLeadSummaryGenerator(queries):
         \*Total SM New leads Alloted Today ({date.today()})\*  
         {'<br>'.join(today_assigned_format)}  
 
-         \*HS UN-ASSIGNED - {hsNotAssignedTillNowData['HS_UN_ASSIGNED']}\* 
+         \*HS UN-ASSIGNED - {hsNotAssignedTillNowData['HS_UN_ASSIGNED'].iloc[0]}\* 
         
         """
 
