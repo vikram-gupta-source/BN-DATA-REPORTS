@@ -4,4 +4,7 @@ version = "0.1.0"
 description = ""
 authors = ["Your Name <you@example.com>"]
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "python-dateutil>=2.9.0.post0",
+    "streamlit>=1.43.2",
+]
