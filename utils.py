@@ -1225,6 +1225,8 @@ class dataSheetFormatting:
         spreadsheet.batch_update(body)
 
     def mentorwiseDivideSheets(self):
+        import time
+        
         spreadsheet = client.open_by_url(str(self.sheetLink))
         try:
             worksheet = spreadsheet.worksheet('Sheet1')
@@ -1248,16 +1250,40 @@ class dataSheetFormatting:
 
         for values in uniqueVal:
             filtered_data = df[df[str(self.splitColumn)] == values]
-
+            
             try:
-                NewWorksheet = spreadsheet.worksheet(str(values))
-            except gspread.exceptions.WorksheetNotFound:
-                NewWorksheet = spreadsheet.add_worksheet(str(values),
-                                                         rows=3000,
-                                                         cols=100)
+                max_retries = 3
+                retry_count = 0
+                while retry_count < max_retries:
+                    try:
+                        NewWorksheet = spreadsheet.worksheet(str(values))
+                        break
+                    except gspread.exceptions.APIError as e:
+                        if 'quota' in str(e).lower():
+                            retry_count += 1
+                            if retry_count == max_retries:
+                                raise
+                            time.sleep(60)  # Wait 60 seconds before retrying
+                        else:
+                            raise
+                    except gspread.exceptions.WorksheetNotFound:
+                        time.sleep(1)  # Small delay before creating new worksheet
+                        NewWorksheet = spreadsheet.add_worksheet(str(values),
+                                                               rows=3000,
+                                                               cols=100)
+                        break
 
-            NewWorksheet.clear()
-            set_with_dataframe(NewWorksheet, filtered_data)
+                time.sleep(1)  # Small delay between operations
+                NewWorksheet.clear()
+                
+                # Batch update the data
+                data_values = [filtered_data.columns.values.tolist()] + filtered_data.values.tolist()
+                NewWorksheet.update(range_name='A1', values=data_values)
+                time.sleep(2)  # Delay between worksheet updates
+                
+            except Exception as e:
+                st.error(f"Error processing worksheet {values}: {str(e)}")
+                continue
         dataSheetFormatting.allignSheets(spreadsheet)
         st.write("Sheet Formatting Done !!")
 
