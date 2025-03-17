@@ -34,10 +34,18 @@ scope = [
     "https://spreadsheets.google.com/feeds",
     "https://www.googleapis.com/auth/drive"
 ]
-creds = Credentials.from_service_account_file('credentials.json', scopes=scope)
-client = gspread.authorize(creds)
-drive_service = build('drive', 'v3', credentials=creds)
-service = build('sheets', 'v4', credentials=creds)
+import json
+import os
+
+try:
+    service_account_info = json.loads(os.environ['GOOGLE_SERVICE_ACCOUNT'])
+    creds = Credentials.from_service_account_info(service_account_info, scopes=scope)
+    client = gspread.authorize(creds)
+    drive_service = build('drive', 'v3', credentials=creds)
+    service = build('sheets', 'v4', credentials=creds)
+except Exception as e:
+    st.error("Failed to initialize Google credentials. Please check your service account configuration.")
+    raise e
 
 
 class summaryTable:
