@@ -98,7 +98,7 @@ class summaryTable:
         ax.text(0.5,
                 table_bottom + spacing_above_table,
                 self.title,
-                fontfamily="Arial",
+                fontfamily="sans-serif",
                 fontsize=self.title_font_size,
                 fontweight='bold',
                 ha='center',
@@ -117,7 +117,7 @@ class summaryTable:
 
         # Make the table font consistent and bold for totals
         for key, cell in table.get_celld().items():
-            cell.set_text_props(fontfamily='Times New Roman',
+            cell.set_text_props(fontfamily='sans-serif',
                                 fontsize=self.table_font_size)
             row, col = key
             if row == len(data):  # Total row
@@ -186,7 +186,7 @@ class summaryTable:
         ax.text(0.5,
                 table_bottom + spacing_above_table,
                 self.title,
-                fontfamily="Arial",
+                fontfamily="sans-serif",
                 fontsize=self.title_font_size,
                 fontweight='bold',
                 ha='center',
@@ -205,7 +205,7 @@ class summaryTable:
 
         # Make the table font consistent and bold for totals
         for key, cell in table.get_celld().items():
-            cell.set_text_props(fontfamily='Times New Roman',
+            cell.set_text_props(fontfamily='sans-serif',
                                 fontsize=self.table_font_size)
             row, col = key
             if row == len(data):  # Total row
@@ -248,7 +248,7 @@ class summaryTable:
         <body>
             <table style="width: 70%; 
             border-collapse: collapse; 
-            font-family: 'Times New Roman', Times, serif; 
+            font-family: 'sans-serif'; 
             font-size: 15px;">
                 <tr>
                     <th colspan="10" style="background-color: #d6f5d6; font-size: 16px; font-weight: bold; text-align: center; padding: 10px; border: 1px solid black;">
@@ -322,7 +322,7 @@ class summaryTable:
         <body>
             <table style="width: 70%;             
             border-collapse: collapse; 
-            font-family: 'Times New Roman', Times, serif; 
+            font-family: 'sans-serif'; 
             font-size: 15px;">
                 <tr>
                     <th colspan="10" style="background-color: #d6f5d6; font-size: 16px; font-weight: bold; text-align: center; padding: 10px; border: 1px solid black;">
@@ -735,7 +735,7 @@ class recordUpdate:
                 unique_values = []
 
                 for row in data:
-                    # Use the dynamic indices to get email and phone values
+                    # Use the dynamic indices to get email and phonevalues
                     email = row[email_column_index] if len(
                         row) > email_column_index else None
                     phone = row[phone_column_index] if len(
@@ -1226,7 +1226,7 @@ class dataSheetFormatting:
 
     def mentorwiseDivideSheets(self):
         import time
-        
+
         spreadsheet = client.open_by_url(str(self.sheetLink))
         try:
             worksheet = spreadsheet.worksheet('Sheet1')
@@ -1250,7 +1250,7 @@ class dataSheetFormatting:
 
         for values in uniqueVal:
             filtered_data = df[df[str(self.splitColumn)] == values]
-            
+
             try:
                 max_retries = 3
                 retry_count = 0
@@ -1275,12 +1275,12 @@ class dataSheetFormatting:
 
                 time.sleep(1)  # Small delay between operations
                 NewWorksheet.clear()
-                
+
                 # Batch update the data
                 data_values = [filtered_data.columns.values.tolist()] + filtered_data.values.tolist()
                 NewWorksheet.update(range_name='A1', values=data_values)
                 time.sleep(2)  # Delay between worksheet updates
-                
+
             except Exception as e:
                 st.error(f"Error processing worksheet {values}: {str(e)}")
                 continue
