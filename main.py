@@ -322,7 +322,7 @@ if option == 'Summary Report':
 
         elif selected_report == "Counsellor Sales Analysis Report":
             queries = [
-                summary_query.counsellorSalesSummaryReport(),
+                summary_query.counsellorSalesSummaryQuery(),
                 summary_query.counsellorSalesAnalysisQuery()
             ]
             counsellorSalesAnalysis(queries)
