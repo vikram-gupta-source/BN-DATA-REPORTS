@@ -22,7 +22,8 @@ mentors = {
     'Urmila': 152,
     'UrmilaR': 266,
     'Vartika': 245,
-    'Zahra': 271
+    'Zahra': 271,
+    'Shirin': 268
 }
 
 options = [
@@ -71,8 +72,8 @@ sheet = [
     'NAF Sent Diet Not Receieved Over Due 24 hrs. Sheet',
     'Induction Call Not Done Data Sheet',
     'Good Weight Loss Active Clients Data Sheet',
-    'Basic Stack Upgraded to Special stack (Lead) Data Sheet',
-    'Basic Stack Upgraded to Speical Stack (OCR) Data Sheet',
+    'Basic Stack Not Upgraded to Special stack (Lead) Data Sheet',
+    'Basic Stack Not Upgraded to Speical Stack (OCR) Data Sheet',
     'COM Call Not Done Data Sheet', 'Half Time Feedback Data Sheet'
 ]
 
@@ -116,7 +117,7 @@ if option == 'Summary Report':
             'title_font_size': 10,
             'table_width': 4,
             'table_font_size': 10,
-            'title_space': 2.1
+            'title_space': 2.4
         },
         'All Active Client Summary Report': {
             'query': summary_query.allactiveClientSummaryQuery(),
@@ -124,7 +125,7 @@ if option == 'Summary Report':
             'title_font_size': 14,
             'table_width': 11,
             'table_font_size': 11,
-            'title_space': 2.05
+            'title_space': 2.25
         },
         'New & OL(Without Ref) Summary Report': {
             'query': summary_query.leadWithoutRefSummaryQuery(),
@@ -150,7 +151,7 @@ if option == 'Summary Report':
             'title_font_size': 12,
             'table_width': 9,
             'table_font_size': 11,
-            'title_space': 2.11
+            'title_space': 2.23
         },
         'Basic Stack Not Upgraded To Special Stack Summary Report(Lead)': {
             'query': summary_query.leadBasicStackUpgradeQuery(),
@@ -159,7 +160,7 @@ if option == 'Summary Report':
             'title_font_size': 10,
             'table_width': 8,
             'table_font_size': 10.5,
-            'title_space': 1.75
+            'title_space': 1.85
         },
         'Basic Stack Not Upgraded To Special Stack Summary Report(OCR)': {
             'query': summary_query.ocrBasicStackUpgradeQuery(),
@@ -168,7 +169,7 @@ if option == 'Summary Report':
             'title_font_size': 11,
             'table_width': 8,
             'table_font_size': 10.5,
-            'title_space': 1.65
+            'title_space': 1.95
         },
         'COM Call Summary Report': {
             'query': summary_query.comCallSummaryReport(),
@@ -184,7 +185,7 @@ if option == 'Summary Report':
             'title_font_size': 11,
             'table_width': 8,
             'table_font_size': 10.5,
-            'title_space': 1.62
+            'title_space': 1.53
         },
         'Final Feedback Summary Report': {
             'query': summary_query.finalFeedbackSummaryQuery(),
@@ -192,7 +193,7 @@ if option == 'Summary Report':
             'title_font_size': 11,
             'table_width': 8,
             'table_font_size': 10.5,
-            'title_space': 1.32
+            'title_space': 0.85
         }
     }
 
@@ -434,13 +435,13 @@ elif option == 'Data Sheet':
             'title':
             f"Mentor Wise All Active Clients(No Adv. Purchase) (Above 70 Kg) Un-Pitched {month} {year} MTD Data Sheet"
         },
-        "Basic Stack Upgraded to Special stack (Lead) Data Sheet": {
+        "Basic Stack Not Upgraded to Special stack (Lead) Data Sheet": {
             'query':
             data_query.leadBasicStackNotUpgradedDataSheet(),
             'title':
             f"Basic Stack Upgraded to Special Stack (Lead) (Last Six Month) Data Sheet"
         },
-        "Basic Stack Upgraded to Speical Stack (OCR) Data Sheet": {
+        "Basic Stack Not Upgraded to Speical Stack (OCR) Data Sheet": {
             'query':
             data_query.ocrBasicStackNotUpgradedDataSheet(),
             'title':

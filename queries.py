@@ -648,7 +648,7 @@ class summaryQueries:
             WHERE a.user_status IN ('Dropouts', 'Completeds', 'fs','Completed',
             'Dropout','Dropoutss','Completedss')
             GROUP BY id) as t1 group by mentor
-            HAVING mentor NOT IN ('Admin', 'Nikita', 'Sadaf', 'Jyoti');
+            HAVING mentor NOT IN ('Admin', 'Nikita', 'Sadaf', 'Jyoti', 'NO MENTOR', 'NikitaK');
          """
     return query
 
@@ -741,6 +741,7 @@ class summaryQueries:
                 AND registries.mentor_id NOT IN ('', '0', '10', '196')
             GROUP BY
                 registries.mentor_id
+
             ORDER BY Mentor
             """
     return query
@@ -927,33 +928,34 @@ class summaryQueries:
         (SELECT       
           lm.clean_phone,
           la.assign_to AS `Name`,	
-          CASE WHEN phone_suffix IN (
-            SELECT
-              RIGHT(
+          CASE WHEN (phone_suffix IN (
+        SELECT
+          RIGHT(
+            REPLACE(
+              REPLACE(
                 REPLACE(
                   REPLACE(
-                    REPLACE(
-                      REPLACE(
-                        REPLACE(lm_prev.phone, '(', ''),
-                        ')',
-                        ''
-                      ),
-                      ' ',
-                      ''
-                    ),
-                    '-',
+                    REPLACE(lm_prev.phone, '(', ''),
+                    ')',
                     ''
                   ),
-                  '+',
+                  ' ',
                   ''
                 ),
-                8
-              )
-            FROM
-              lead_management lm_prev
-            WHERE
-              DATE(lm_prev.created) < DATE('{self.start_date}')
-          ) THEN 'OL' ELSE 'New Lead' END AS lead_type,
+                '-',
+                ''
+              ),
+              '+',
+              ''
+            ),
+            8
+          )
+        FROM
+          lead_management lm_prev
+        WHERE
+          DATE(lm_prev.created) < DATE('{self.start_date}'))
+
+      ) THEN 'OL' ELSE 'New Lead' END AS lead_type,
           CASE WHEN
                ((lm.clean_phone LIKE '91%' AND LENGTH(lm.clean_phone) = 12)
                 OR (lm.clean_phone LIKE '9191%' AND LENGTH(lm.clean_phone) = 14)
@@ -1095,33 +1097,33 @@ class summaryQueries:
             (SELECT       
               lm.clean_phone,
               la.assign_to AS `Name`,	
-              CASE WHEN phone_suffix IN (
-                SELECT
-                  RIGHT(
+              CASE WHEN (phone_suffix IN (
+            SELECT
+              RIGHT(
+                REPLACE(
+                  REPLACE(
                     REPLACE(
                       REPLACE(
-                        REPLACE(
-                          REPLACE(
-                            REPLACE(lm_prev.phone, '(', ''),
-                            ')',
-                            ''
-                          ),
-                          ' ',
-                          ''
-                        ),
-                        '-',
+                        REPLACE(lm_prev.phone, '(', ''),
+                        ')',
                         ''
                       ),
-                      '+',
+                      ' ',
                       ''
                     ),
-                    8
-                  )
-                FROM
-                  lead_management lm_prev
-                WHERE
-                  DATE(lm_prev.created) < DATE('{self.start_date}')
-              ) THEN 'OL' ELSE 'New Lead' END AS lead_type,
+                    '-',
+                    ''
+                  ),
+                  '+',
+                  ''
+                ),
+                8
+              )
+            FROM
+              lead_management lm_prev
+            WHERE
+              DATE(lm_prev.created) < DATE('{self.start_date}'))	
+          ) THEN 'OL' ELSE 'New Lead' END AS lead_type,
               CASE WHEN
                    ((lm.clean_phone LIKE '91%' AND LENGTH(lm.clean_phone) = 12)
                     OR (lm.clean_phone LIKE '9191%' AND LENGTH(lm.clean_phone) = 14)
@@ -1332,7 +1334,7 @@ class summaryQueries:
         ) AS sheet                                                     
         GROUP BY assignedTo 
 
-        HAVING `Name` IN ("Akansha", "Krishna", "UrmilaR", "PrajaktaT", "Deeba", "Vidhanshi")    
+        HAVING `Name` IN ("Akansha", "Krishna", "UrmilaR", "PrajaktaT", "Deeba", "Vidhanshi", 'Barkha', 'KajalS')    
         ORDER BY Assigned DESC  
 
 
@@ -4511,7 +4513,8 @@ class impQueryTemplete:
           (lm.email IN (SELECT email FROM lead_action
                   WHERE EXISTS (
                     SELECT 1 FROM lead_action
-                    WHERE email = lm.email AND DATE(key_insight_date) < DATE("2024-12-01")
+                    WHERE email = lm.email AND DATE(assign_date) >= DATE('{self.start_date}')
+                                    AND DATE(key_insight_date) < DATE("2024-12-01")
                     )))
       ) THEN 'OL' ELSE 'New Lead' END AS lead_type
     '''
@@ -4599,6 +4602,39 @@ class impQueryTemplete:
       ) THEN 1 ELSE 0 END AS paid_status
     '''
 
+  key_insight_date = f'''
+        DATE_FORMAT(
+        STR_TO_DATE(
+          REPLACE(
+            REPLACE(
+              REPLACE(
+                REPLACE(
+                  SUBSTR(
+                    la.key_insight,
+                    LOCATE('<b>', la.key_insight) + LENGTH('<b>'),
+                    LOCATE('</b>', la.key_insight) - (
+                      LOCATE('<b>', la.key_insight) + LENGTH('<b>')
+                    )
+                  ),
+                  'st',
+                  ''
+                ),
+                'nd',
+                ''
+              ),
+              'rd',
+              ''
+            ),
+            'th',
+            ''
+          ),
+          '%d %b %Y'
+        ),
+        '%Y-%m-%d'
+      ) AS keyinsight_date
+
+    '''
+
 
 class analysisReportQuery:
 
@@ -4620,14 +4656,18 @@ class analysisReportQuery:
             OR LOWER(lead_source) LIKE '%ref%'
             OR LOWER(lead_source) LIKE '%insta%'
             OR LOWER(lead_source) LIKE '%face%'
-          ) THEN 'High Potential' WHEN (
+          ) THEN 'High Potential'
+          WHEN (
+            age >= 35
+            AND LOWER(nri_status) LIKE '%indian%'
+          ) THEN 'Age 35+' WHEN LOWER(nri_status) LIKE '%nri%' THEN 'NRI' 
+           WHEN (
             LOWER(lead_source) LIKE '%health%'
             OR LOWER(lead_source) LIKE '%hs%'
             AND stages IN (3, 4)
-          ) THEN 'Stage 3 & 4' WHEN (
-            age >= 35
-            AND LOWER(nri_status) LIKE '%indian%'
-          ) THEN 'Age 35+' WHEN LOWER(nri_status) LIKE '%nri%' THEN 'NRI' ELSE 'Other' END AS `CATEGORY`,
+          ) 
+          THEN 'Stage 3 & 4' 
+          ELSE 'Other' END AS `CATEGORY`,
           COUNT(*) AS `SALE`
         FROM
           (
@@ -4651,7 +4691,7 @@ class analysisReportQuery:
                 )
                 OR (
                   LENGTH(lm.clean_phone) = 10
-                  AND lm.clean_phone REGEXP '^[6-9][0-9]{{9}}$'
+                  AND lm.clean_phone REGEXP '^[6-9][0-9]{9}$'
                 )
               ) THEN 'Indian' ELSE 'NRI' END AS nri_status
             FROM
@@ -4662,13 +4702,59 @@ class analysisReportQuery:
                   order_details
                 WHERE
                   program_type = 0
-                  AND DATE(DATE) BETWEEN DATE('{self.start_date}') AND DATE('{self.end_date}')                            
-                  AND sales_person IN (252, 274, 276, 278)
+                  AND DATE(DATE) BETWEEN DATE('{self.start_date}') AND DATE('{self.end_date}')   
+                  AND sales_person IN (252, 274, 278, 285,286)
                   AND LOWER(order_type) IN ('New', 'OMR')
                   AND program_duration_days > 14
+                  AND LOWER(program_name) NOT LIKE '%dubai%'
                   AND prog_buy_amt IS NOT NULL
               ) od
-              INNER JOIN admin_user au ON au.admin_id = od.sales_person
+              INNER JOIN (
+                SELECT
+                  email_id,
+                  REPLACE(
+                    REPLACE(
+                      REPLACE(
+                        REPLACE(
+                          REPLACE(mobile_no1, '(', ''),
+                          ')',
+                          ''
+                        ),
+                        ' ',
+                        ''
+                      ),
+                      '-',
+                      ''
+                    ),
+                    '+',
+                    ''
+                  ) AS clean_mobile1,
+                  RIGHT(
+                    REPLACE(
+                      REPLACE(
+                        REPLACE(
+                          REPLACE(
+                            REPLACE(mobile_no1, '(', ''),
+                            ')',
+                            ''
+                          ),
+                          ' ',
+                          ''
+                        ),
+                        '-',
+                        ''
+                      ),
+                      '+',
+                      ''
+                    ),
+                    8
+                  ) AS mobile1_suffix
+                FROM
+                  billing_details
+              ) bd 
+              ON od.email_id = bd.email_id			
+              INNER JOIN admin_user au 
+              ON au.admin_id = od.sales_person			
               LEFT JOIN (
                 SELECT
                   id,
@@ -4728,55 +4814,13 @@ class analysisReportQuery:
                   ) > 15 THEN 4 ELSE 'No Stage' END AS stages
                 FROM
                   lead_management
-              ) lm ON od.email_id = lm.email
-              LEFT JOIN lead_management lm1 ON lm.email = lm1.email
-              AND lm.id < lm1.id
-              INNER JOIN (
-                SELECT
-                  email_id,
-                  REPLACE(
-                    REPLACE(
-                      REPLACE(
-                        REPLACE(
-                          REPLACE(mobile_no1, '(', ''),
-                          ')',
-                          ''
-                        ),
-                        ' ',
-                        ''
-                      ),
-                      '-',
-                      ''
-                    ),
-                    '+',
-                    ''
-                  ) AS clean_mobile1,
-                  RIGHT(
-                    REPLACE(
-                      REPLACE(
-                        REPLACE(
-                          REPLACE(
-                            REPLACE(mobile_no1, '(', ''),
-                            ')',
-                            ''
-                          ),
-                          ' ',
-                          ''
-                        ),
-                        '-',
-                        ''
-                      ),
-                      '+',
-                      ''
-                    ),
-                    8
-                  ) AS mobile1_suffix
-                FROM
-                  billing_details
-              ) bd ON od.email_id = bd.email_id
-              AND lm.phone_suffix = bd.mobile1_suffix
+              ) lm 
+              ON (lm.phone_suffix = bd.mobile1_suffix OR lm.email = bd.email_id)
+              LEFT JOIN lead_management lm1 ON lm1.email = lm.email
+              AND lm.id < lm1.id			
             WHERE
               lm1.id IS NULL
+            GROUP BY paid_email
           ) AS sub_data
         GROUP BY
           `NAME`,
@@ -5002,8 +5046,10 @@ class analysisReportQuery:
             WHERE
               lm2.id IS NULL
               AND la1.id IS NULL
+                    AND LOWER(lm.email) NOT LIKE '%test%' 
+                        AND LENGTH(lm.clean_phone) > 4
               AND la.assign_to IN (
-                'Akansha', 'Deeba', 'Vidhanshi', 'Krishna'
+                'Akansha', 'Deeba', 'ShraddhaK', 'Krishna', 'Barkha'
               )
               AND DATE(la.assign_date) BETWEEN DATE(
                 DATE_FORMAT('{self.start_date}', "%Y-%m-01")
@@ -5018,115 +5064,123 @@ class analysisReportQuery:
 
   def counsellorSmLeadSummaryQuery(self):
     query = f'''
-        SELECT	
-                lm.email,
-                sl.leadNumber,
-                sl.assignedTo,
-                sl.leadType,
-                sl.sourcet,
-                CASE WHEN la.email IS NOT NULL THEN 1 ELSE 0 END AS 'cons_status',
-                CASE WHEN bds.email_id IS NOT NULL THEN 1 ELSE 0 END AS 'paid_status'
+        SELECT
+        assignedTo AS `NAME`,
+        sourcet AS sub_source,
+        COUNT(assignedTo) AS `TOTAL`,
+        SUM(cons_status) AS `CONS`,
+        SUM(paid_status) AS `SALE` 
+        FROM
+        (SELECT
+          sl.*,
+          CASE WHEN (
+            SELECT
+              DATE(key_insight_date)
             FROM
-                (
-                    SELECT
-                        *,
-                        REPLACE(
-                            REPLACE(
-                                REPLACE(
-                                    REPLACE(
-                                        REPLACE(phone, '(', ''),
-                                        ')',
-                                        ''
-                                    ),
-                                    ' ',
-                                    ''
-                                ),
-                                '-',
-                                ''
-                            ),
-                            '+',
-                            ''
-                        ) AS clean_phone,
-                        RIGHT(
-                            REPLACE(
-                                REPLACE(
-                                    REPLACE(
-                                        REPLACE(
-                                            REPLACE(phone, '(', ''),
-                                            ')',
-                                            ''
-                                        ),
-                                        ' ',
-                                        ''
-                                    ),
-                                    '-',
-                                    ''
-                                ),
-                                '+',
-                                ''
-                            ),
-                            8
-                        ) AS phone_suffix
-                    FROM
-                        lead_management
-                ) lm
-            INNER JOIN (
+              lead_action
+            WHERE
+              email = (
                 SELECT
-                    *,
-                    RIGHT(leadNumber, 8) AS sl_suffix
+                  lm.email
                 FROM
-                    sociallead
+                  lead_management lm
                 WHERE
-                    leadType IN ('New', 'OL')
-                    AND DATE(created) BETWEEN DATE(
-                        '{self.start_date}'
-                    )
-                    AND DATE('{self.end_date}') AND assignedTo IN (
-                                'Akansha', 'Krishna',
-                                'Deeba')
-                  GROUP BY sl_suffix    
-            ) sl ON RIGHT(sl.leadNumber, 8) = RIGHT(lm.clean_phone, 8)
-            LEFT JOIN lead_action la ON (
-                la.email = lm.email
-                AND DATE(la.key_insight_date) >= DATE(
-                    DATE_FORMAT('{self.start_date}', "%Y-%m-01")
-                )
-            )
-            LEFT JOIN (
-                SELECT
-                    bd.email_id,
-                    RIGHT(
+                  RIGHT(
+                    REPLACE(
+                      REPLACE(
                         REPLACE(
-                            REPLACE(
-                                REPLACE(
-                                    REPLACE(
-                                        REPLACE(bd.mobile_no1, '(', ''),
-                                        ')',
-                                        ''
-                                    ),
-                                    ' ',
-                                    ''
-                                ),
-                                '-',
-                                ''
-                            ),
-                            '+',
+                          REPLACE(
+                            REPLACE(lm.phone, '(', ''),
+                            ')',
                             ''
+                          ),
+                          ' ',
+                          ''
                         ),
-                        8
-                    ) AS bphone_suffix
+                        '-',
+                        ''
+                      ),
+                      '+',
+                      ''
+                    ),
+                    8
+                  ) = RIGHT(sociallead_phone, 8)
+                ORDER BY
+                  lm.id DESC
+                LIMIT
+                  1
+              )
+            ORDER BY
+              id DESC
+            LIMIT
+              1
+          ) >= DATE('{self.start_date}') THEN 1 ELSE 0 END AS cons_status,
+          CASE WHEN RIGHT(sl.sociallead_phone, 8) IN (
+            SELECT
+              RIGHT(
+                REPLACE(
+                  REPLACE(
+                    REPLACE(
+                      REPLACE(
+                        REPLACE(mobile_no1, '(', ''),
+                        ')',
+                        ''
+                      ),
+                      ' ',
+                      ''
+                    ),
+                    '-',
+                    ''
+                  ),
+                  '+',
+                  ''
+                ),
+                8
+              )
+            FROM
+              billing_details
+              INNER JOIN (
+                SELECT
+                  email_id AS email
                 FROM
-                    billing_details bd
-                INNER JOIN (
-                    SELECT
-                        od.email_id
-                    FROM
-                        order_details od
-                    WHERE
-                        program_type = 0
-                ) ods ON ods.email_id = bd.email_id
-            ) bds ON bds.bphone_suffix = lm.phone_suffix
-            ;
+                  order_details
+                WHERE
+                  program_type = 0
+              ) AS od2 ON od2.email = email_id
+          ) THEN 1 ELSE 0 END AS paid_status
+        FROM
+          (
+            SELECT
+              *,
+              REPLACE(
+                REPLACE(
+                  REPLACE(
+                    REPLACE(
+                      REPLACE(leadNumber, '(', ''),
+                      ')',
+                      ''
+                    ),
+                    ' ',
+                    ''
+                  ),
+                  '-',
+                  ''
+                ),
+                '+',
+                ''
+              ) AS sociallead_phone
+            FROM
+              sociallead
+            WHERE leadType IN ('New', 'OL')
+          ) AS sl
+        WHERE
+          sl.assignedTo IN (
+            'Akansha', 'ShraddhaK', 'Krishna', 'Deeba', 'Barkha'
+          )
+          AND DATE(sl.created) BETWEEN DATE("{self.start_date}") AND DATE("{self.end_date}")
+            GROUP BY RIGHT(sl.sociallead_phone, 8)) AS sheet
+
+        GROUP BY assignedTo, sourcet
 
         '''
     return query
