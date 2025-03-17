@@ -1,7 +1,7 @@
 import warnings
 
 warnings.filterwarnings('ignore')
-import re
+# import re
 
 
 class paidDataQueries:
@@ -827,7 +827,7 @@ class summaryQueries:
         FROM change_of_mentor cm
         LEFT JOIN change_of_mentor cm1
         ON cm.user_id = cm1.user_id AND cm.id < cm1.id
-        WHERE cm1.id IS NULL AND cm.old_mentor IN (181, 85, 226, 246, 249, 245, 209)
+        WHERE cm1.id IS NULL AND cm.old_mentor IN (163)
         and date(cm.added_date) >= date('{self.start_date}') 
         GROUP by cm.user_id
         HAVING user_status IN ('Active',
@@ -3726,7 +3726,7 @@ round((SELECT weight_monitor_record_22.weight from weight_monitor_record_22 WHER
         FROM change_of_mentor cm
         LEFT JOIN change_of_mentor cm1
         ON cm.user_id = cm1.user_id AND cm.id < cm1.id
-        WHERE cm1.id IS NULL AND cm.old_mentor IN (181, 85, 226, 246, 249, 245, 209)  
+        WHERE cm1.id IS NULL AND cm.old_mentor IN (163)  
         AND cm.user_id NOT IN (SELECT user_id FROM bn_welcome_appointment 
         WHERE call_type IN (100, 10, 11, 45) AND DATE(added_date) >= DATE('{self.start_date}')) and date(cm.added_date) >= date('{self.start_date}') GROUP by user_id
         HAVING user_status IN ('Active',

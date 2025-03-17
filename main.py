@@ -173,7 +173,7 @@ if option == 'Summary Report':
         },
         'COM Call Summary Report': {
             'query': summary_query.comCallSummaryReport(),
-            'title': f"COM Call Summary Report Nov {year} MTD",
+            'title': f"COM Call Summary Report {month} {year} MTD",
             'title_font_size': 11,
             'table_width': 8,
             'table_font_size': 10.5,
