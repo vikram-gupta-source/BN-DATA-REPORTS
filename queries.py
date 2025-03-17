@@ -1356,6 +1356,26 @@ class summaryQueries:
     '''
     return query
 
+  def spinNotAssignedTillNow(self):
+    query = f'''
+      ( (SELECT COUNT(DISTINCT email) 
+         FROM `lead_management` 
+         WHERE `enquiry_from` LIKE 'Spin to Win Lead' 
+           AND `created` >= '2025-03-01 00:05:47' 
+           AND lead_type = 'New' 
+           AND SUBSTRING(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(phone, ' ', ''), '+', ''), '-', ''), ' ', ''), ' ', ''), LENGTH(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(phone, ' ', ''), '+', ''), '-', ''), ' ', ''), ' ', ''))-8, 9)
+               NOT IN (SELECT SUBSTRING(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(mobile_no1, ' ', ''), '+', ''), '-', ''), ' ', ''), ' ', ''), LENGTH(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(mobile_no1, ' ', ''), '+', ''), '-', ''), ' ', ''), ' ', ''))-8, 9) FROM `billing_details`)) -
+        (SELECT COUNT(DISTINCT email) 
+         FROM `lead_management` 
+         WHERE `enquiry_from` LIKE 'Spin to Win Lead' 
+           AND `created` >= '2025-03-01 00:05:47' 
+           AND lead_type = 'New' 
+           AND email IN (SELECT email FROM lead_action)
+           AND SUBSTRING(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(phone, ' ', ''), '+', ''), '-', ''), ' ', ''), ' ', ''), LENGTH(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(phone, ' ', ''), '+', ''), '-', ''), ' ', ''), ' ', ''))-8, 9)
+               NOT IN (SELECT SUBSTRING(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(mobile_no1, ' ', ''), '+', ''), '-', ''), ' ', ''), ' ', ''), LENGTH(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(mobile_no1, ' ', ''), '+', ''), '-', ''), ' ', ''), ' ', ''))-8, 9) FROM `billing_details`))) AS Not_Assigned_Leads
+    '''
+    return query
+
   def consultationCallBookedYesterdayByLeads(self):
     query = f'''
         SELECT

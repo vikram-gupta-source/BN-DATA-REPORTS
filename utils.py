@@ -382,16 +382,19 @@ class summaryTable:
 
 
 def socialMediaNewLeadSummaryGenerator(queries):
-    summaryQuery, todayAssignedQuery ,hsNotAssignedTillNow = queries
+    summaryQuery, todayAssignedQuery ,hsNotAssignedTillNow,spinNotAssignedTillNow = queries
     with engine.connect() as connection:
         summaryQueryResult = connection.execute(sql.text(summaryQuery))
         todayAssignedResult = connection.execute(sql.text(todayAssignedQuery))
         hsNotAssignedTillNowResult = connection.execute(sql.text(hsNotAssignedTillNow))
+         spinNotAssignedTillNowResult = connection.execute(sql.text(spinNotAssignedTillNow))
 
         summaryData = pd.DataFrame(summaryQueryResult.fetchall(),
                                    columns=summaryQueryResult.keys())
         hsNotAssignedTillNowData = pd.DataFrame(hsNotAssignedTillNowResult.fetchall(),
                columns=hsNotAssignedTillNowResult.keys())
+        spinNotAssignedTillNowData = pd.DataFrame(spinNotAssignedTillNowResult.fetchall(),
+               columns=spinNotAssignedTillNowResult.keys())
         todayAssignedData = pd.DataFrame(todayAssignedResult.fetchall(),
                                          columns=todayAssignedResult.keys())
     summary_format = [
@@ -415,6 +418,8 @@ def socialMediaNewLeadSummaryGenerator(queries):
         {'<br>'.join(today_assigned_format)}  
 
          \*HS UN-ASSIGNED - {hsNotAssignedTillNowData['HS_UN_ASSIGNED'].iloc[0]}\* 
+
+          \*SPIN UN-ASSIGNED - {spinNotAssignedTillNowData['Not_Assigned_Leads'].iloc[0]}\* 
         
         """
 
