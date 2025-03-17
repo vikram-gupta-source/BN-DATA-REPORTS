@@ -39,12 +39,15 @@ import os
 
 try:
     service_account_info = json.loads(os.environ['GOOGLE_SERVICE_ACCOUNT'])
-    creds = Credentials.from_service_account_info(service_account_info, scopes=scope)
+    creds = Credentials.from_service_account_info(service_account_info,
+                                                  scopes=scope)
     client = gspread.authorize(creds)
     drive_service = build('drive', 'v3', credentials=creds)
     service = build('sheets', 'v4', credentials=creds)
 except Exception as e:
-    st.error("Failed to initialize Google credentials. Please check your service account configuration.")
+    st.error(
+        "Failed to initialize Google credentials. Please check your service account configuration."
+    )
     raise e
 
 
@@ -521,7 +524,7 @@ class dataSheets:
         # Update the worksheet with data
         worksheet.update(values=data_list,
                          range_name='A1')  # Update starting from cell A1
-        new_sheet.share('mohan.dubey@balancenutrition.in',
+        new_sheet.share('vikram.gupta@balancenutrition.in',
                         perm_type='user',
                         role='writer')
         if 'mentor' in data.columns:
@@ -1275,17 +1278,19 @@ class dataSheetFormatting:
                         else:
                             raise
                     except gspread.exceptions.WorksheetNotFound:
-                        time.sleep(1)  # Small delay before creating new worksheet
+                        time.sleep(
+                            1)  # Small delay before creating new worksheet
                         NewWorksheet = spreadsheet.add_worksheet(str(values),
-                                                               rows=3000,
-                                                               cols=100)
+                                                                 rows=3000,
+                                                                 cols=100)
                         break
 
                 time.sleep(1)  # Small delay between operations
                 NewWorksheet.clear()
 
                 # Batch update the data
-                data_values = [filtered_data.columns.values.tolist()] + filtered_data.values.tolist()
+                data_values = [filtered_data.columns.values.tolist()
+                               ] + filtered_data.values.tolist()
                 NewWorksheet.update(range_name='A1', values=data_values)
                 time.sleep(2)  # Delay between worksheet updates
 
