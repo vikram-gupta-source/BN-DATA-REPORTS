@@ -522,7 +522,7 @@ class summaryQueries:
                         36,
                         134,
                         38,
-                        73
+                        73,162,163
                     )
                 LIMIT 1
             ) AS sugg_program_name,(
@@ -542,7 +542,7 @@ class summaryQueries:
                         36,
                         134,
                         38,
-                        73
+                        73,162,163
                     )
                 LIMIT 1
             ) AS sugg_program_days,(
@@ -562,7 +562,7 @@ class summaryQueries:
                         36,
                         134,
                         38,
-                        73
+                        73,162,163
                     )
                 LIMIT 1
             ) AS sugg_amount, a.user_status,
@@ -3426,7 +3426,7 @@ class dataSheetQueries:
                     36,
                     134,
                     38,
-                    73
+                    73,162,163
                 )
             LIMIT 1
         ) AS sugg_program_name,(
@@ -3445,7 +3445,7 @@ class dataSheetQueries:
                     36,
                     134,
                     38,
-                    73
+                    73,162,163
                 )
             LIMIT 1
         ) AS sugg_program_days,(
@@ -3464,7 +3464,7 @@ class dataSheetQueries:
                     36,
                     134,
                     38,
-                    73
+                    73,162,163
                 )
             LIMIT 1
         ) AS sugg_amount, a.user_status,
@@ -3512,7 +3512,7 @@ class dataSheetQueries:
                     36,
                     134,
                     38,
-                    73
+                    73,162,163
                 )
             LIMIT 1
         ) AS sugg_program_name,(
@@ -3531,7 +3531,7 @@ class dataSheetQueries:
                     36,
                     134,
                     38,
-                    73
+                    73,162,163
                 )
             LIMIT 1
         ) AS sugg_program_days,(
@@ -3550,7 +3550,7 @@ class dataSheetQueries:
                     36,
                     134,
                     38,
-                    73
+                    73,162,163
                 )
             LIMIT 1
         ) AS sugg_amount, a.user_status,
