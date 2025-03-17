@@ -307,7 +307,9 @@ if option == 'Summary Report':
         elif selected_report == "Khyati Ma'ams' SM New Leads Summary Report":
             queries = [
                 summary_query.socialMediaNewleadSummary(),
-                summary_query.socialMediaNewLeadAssignedToday()
+                summary_query.socialMediaNewLeadAssignedToday(),
+
+summary_query.hsNotAssignedTillNow()
             ]
             socialMediaNewLeadSummaryGenerator(queries)
 

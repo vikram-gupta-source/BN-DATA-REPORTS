@@ -1350,6 +1350,12 @@ class summaryQueries:
         '''
     return query
 
+  def hsNotAssignedTillNow(self):
+    query = f'''
+      SELECT COUNT(*) as HS_UN_ASSIGNED FROM lead_management WHERE enquiry_from LIKE '%BN health%' AND DATE(created) = CURDATE() AND email NOT IN (SELECT email_id FROM order_details) AND email NOT IN (SELECT email FROM lead_action) AND lead_type IN ('New', 'OLR', '')
+    '''
+    return query
+
   def consultationCallBookedYesterdayByLeads(self):
     query = f'''
         SELECT

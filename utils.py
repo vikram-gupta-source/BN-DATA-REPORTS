@@ -382,12 +382,16 @@ class summaryTable:
 
 
 def socialMediaNewLeadSummaryGenerator(queries):
-    summaryQuery, todayAssignedQuery = queries
+    summaryQuery, todayAssignedQuery ,hsNotAssignedTillNow = queries
     with engine.connect() as connection:
         summaryQueryResult = connection.execute(sql.text(summaryQuery))
         todayAssignedResult = connection.execute(sql.text(todayAssignedQuery))
+        hsNotAssignedTillNowResult = connection.execute(sql.text(hsNotAssignedTillNow))
+
         summaryData = pd.DataFrame(summaryQueryResult.fetchall(),
                                    columns=summaryQueryResult.keys())
+        hsNotAssignedTillNowData = pd.DataFrame(hsNotAssignedTillNowResult.fetchall(),
+               columns=hsNotAssignedTillNowResult.keys())
         todayAssignedData = pd.DataFrame(todayAssignedResult.fetchall(),
                                          columns=todayAssignedResult.keys())
     summary_format = [
@@ -409,6 +413,9 @@ def socialMediaNewLeadSummaryGenerator(queries):
 
         \*Total SM New leads Alloted Today ({date.today()})\*  
         {'<br>'.join(today_assigned_format)}  
+
+         \*HS UN-ASSIGNED - ({hsNotAssignedTillNowData['HS_UN_ASSIGNED']})\* 
+        
         """
 
     # Render markdown with no spacing
