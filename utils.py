@@ -132,7 +132,7 @@ class summaryTable:
         base64_image = base64.b64encode(img_buffer.getvalue()).decode()
         st.image(img_buffer,
                  caption="Right-click to copy the image",
-                 use_column_width=True)
+                 use_container_width=True)
 
         # Provide a download button for the PNG image
         st.download_button(label="Download table as PNG",
@@ -220,7 +220,7 @@ class summaryTable:
         base64_image = base64.b64encode(img_buffer.getvalue()).decode()
         st.image(img_buffer,
                  caption="Right-click to copy the image",
-                 use_column_width=True)
+                 use_container_width=True)
 
         # Provide a download button for the PNG image
         st.download_button(label="Download table as PNG",
