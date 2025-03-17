@@ -9,7 +9,7 @@ import numpy as np
 from decimal import Decimal
 import requests
 from googleapiclient.errors import HttpError
-import pywhatkit as pwk
+# Removed pywhatkit import as it's not used
 import matplotlib.pyplot as plt
 import io
 import tempfile

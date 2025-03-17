@@ -13,7 +13,7 @@ dependencies = [
     "numpy>=2.2.4",
     "pandas>=2.2.3",
     "python-dateutil>=2.9.0.post0",
-    "pywhatkit>=5.4",
+    
     "requests>=2.32.3",
     "sqlalchemy>=2.0.39",
     "streamlit>=1.43.2",
