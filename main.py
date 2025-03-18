@@ -1,8 +1,7 @@
 from queries import summaryQueries, dataSheetQueries, mentorAuditQueries, analysisReportQuery
-from utils import summaryTable, dataSheets, recordUpdate, removePaidData, mentorAudit, socialMediaNewLeadSummaryGenerator, morningLeadReportGenerator, dataSheetFormatting, salesAnalysisReport
+from utils import summaryTable, dataSheets, recordUpdate, removePaidData, mentorAudit, socialMediaNewLeadSummaryGenerator, morningLeadReportGenerator, dataSheetFormatting, salesAnalysisReport, currentHsStatusReportGenerator
 import streamlit as st
 from datetime import datetime
-from dateutil.relativedelta import relativedelta
 from concurrent.futures import ThreadPoolExecutor
 
 mentors = {
@@ -34,6 +33,7 @@ options = [
 
 reports = [
     "Khyati Ma'ams' Morning Lead Consultaion Report",
+    "Current HS Status Report",
     'OCR Client Summary Report', 'All Active Client Summary Report',
     'All Active Clients (Plat & Preg) Summary Report',
     'New & OL(Without Ref) Summary Report', 'Counsellor Sales Analysis Report',
@@ -52,7 +52,11 @@ reports = [
 
 sheet = [
     'Tailend Clients Un-Pitched Data Sheet',
+    'Mentor Wise All Active Clients Data Sheet',
+    'Mentor Wise All OCR Clients Data Sheet',
+    'Mentor Wise All Dormant Clients Data Sheet',
     'Mentor Un-Paid All Rate Shared Data Sheet',
+    'All Nutritionists Assigned Un-Paid Leads (SPIN TAKEN) UPDATED Data Sheet',
     'Mentor All Active (No Adv Purchase) Un-Pitched Data Sheet',
     'Mentor All Active (No Adv Purchase) Above 70 kg Un-Pitched Data Sheet',
     'All Nutritionist Assigned Un-Paid Leads Data Sheet',
@@ -74,7 +78,7 @@ sheet = [
     'Good Weight Loss Active Clients Data Sheet',
     'Basic Stack Not Upgraded to Special stack (Lead) Data Sheet',
     'Basic Stack Not Upgraded to Speical Stack (OCR) Data Sheet',
-    'COM Call Not Done Data Sheet', 'Half Time Feedback Data Sheet'
+    'COM Call Not Done Data Sheet','Rate Shared Sheet To Abdul', 'Half Time Feedback Data Sheet' ,'Final Feedback Data Sheet'
 ]
 
 analysis_report_list = [
@@ -82,7 +86,7 @@ analysis_report_list = [
     'Lead Medical Count Summary Report'
 ]
 
-st.title("BN Report & Sheet Panel")
+st.title("Report's & Sheet Panel")
 
 option = st.selectbox("Select An Options You Need", options)
 
@@ -143,7 +147,16 @@ if option == 'Summary Report':
             'title_font_size': 11,
             'table_width': 8,
             'table_font_size': 11,
-            'title_space': 2.2
+            'title_space': 2.3
+        },
+        'Induction Call Not Done Summary Report': {
+            'query': summary_query.inductionCallSummaryQuery(),
+            'title':
+            f" Induction Call Not Done Summary Report {month} {year} MTD",
+            'title_font_size': 11,
+            'table_width': 8,
+            'table_font_size': 11,
+            'title_space': 0.5
         },
         'All Active Clients (Plat & Preg) Summary Report': {
             'query': summary_query.activePregPlatClientSummaryQuery(),
@@ -156,7 +169,7 @@ if option == 'Summary Report':
         'Basic Stack Not Upgraded To Special Stack Summary Report(Lead)': {
             'query': summary_query.leadBasicStackUpgradeQuery(),
             'title':
-            f"Basic Stack Not Upgraded To Special Stack Summary Report (Lead) (Last Six Months)",
+            "Basic Stack Not Upgraded To Special Stack Summary Report (Lead) (Last Six Months)",
             'title_font_size': 10,
             'table_width': 8,
             'table_font_size': 10.5,
@@ -165,7 +178,7 @@ if option == 'Summary Report':
         'Basic Stack Not Upgraded To Special Stack Summary Report(OCR)': {
             'query': summary_query.ocrBasicStackUpgradeQuery(),
             'title':
-            f"Basic Stack Not Upgraded To Special Stack Summary Report (OCR) (Last Six Months)",
+            "Basic Stack Not Upgraded To Special Stack Summary Report (OCR) (Last Six Months)",
             'title_font_size': 11,
             'table_width': 8,
             'table_font_size': 10.5,
@@ -308,8 +321,8 @@ if option == 'Summary Report':
             queries = [
                 summary_query.socialMediaNewleadSummary(),
                 summary_query.socialMediaNewLeadAssignedToday(),
-
-summary_query.hsNotAssignedTillNow()
+                summary_query.hsNotAssignedTillNow(),
+                summary_query.spinNotAssignedTillNow()
             ]
             socialMediaNewLeadSummaryGenerator(queries)
 
@@ -317,10 +330,19 @@ summary_query.hsNotAssignedTillNow()
             queries = [
                 summary_query.consultationCallBookedYesterdayByLeads(),
                 summary_query.yesterdayAllHS(),
+                summary_query.yesterdayAllHSInsta(),
+                summary_query.spinNotAssignedTillNow(),
                 summary_query.previousDayUnassignedHS(),
                 summary_query.previousDayUnassignedRegistration()
             ]
             morningLeadReportGenerator(queries)
+
+        elif selected_report == "Current HS Status Report":
+            queries = [
+                summary_query.currentHsStatus(),
+                summary_query.currentHsStatus1()
+            ]            
+            currentHsStatusReportGenerator(queries)
 
         elif selected_report == "Counsellor Sales Analysis Report":
             queries = [
@@ -360,11 +382,35 @@ elif option == 'Data Sheet':
             'title':
             f"Mentor Wise Tailend Client Un-Pitched {month} {year} MTD Data Sheet"
         },
+        'Mentor Wise All Active Clients Data Sheet': {
+            'query':
+            data_query.allActiveDataSheetQuery(),
+            'title':
+            f"Mentor Wise All Active Clients Data Sheet {month} {year} MTD Updated"
+        },
+        'Mentor Wise All OCR Clients Data Sheet': {
+            'query':
+            data_query.allOcrDataSheetQuery(),
+            'title':
+            f"Mentor Wise All OCR Clients Data Sheet {month} {year} MTD Updated"
+        },
+        'Mentor Wise All Dormant Clients Data Sheet': {
+            'query':
+            data_query.dormantDataSheet(),
+            'title':
+            f"Mentor Wise All Dormant Clients Data Sheet {month} {year} MTD Updated"
+        },
         'Mentor Un-Paid All Rate Shared Data Sheet': {
             'query':
             data_query.allRateSharedUnpaidSheet(),
             'title':
             f"Mentor Wise All(Active/OCR/Lead) Un-Paid Rate Shared {month} {year} MTD Data Sheet"
+        },
+        'All Nutritionists Assigned Un-Paid Leads (SPIN TAKEN) UPDATED Data Sheet': {
+            'query':
+            data_query.allAssignedUnPaidLeadsSpinDataSheetQuery(),
+            'title':
+            f"All Nutritionists Assigned Un-Paid Leads {month} {year} (SPIN TAKEN) UPDATED Data Sheet"
         },
         "Mentor All Active (No Adv Purchase) Un-Pitched Data Sheet": {
             'query':
@@ -376,13 +422,13 @@ elif option == 'Data Sheet':
             'query':
             data_query.wmrReceivedDietNotSendOD(),
             'title':
-            f"Mentor Wise WMR Received but Diet Not Sent - Over Due (Last 48 Hours) Data Sheet"
+            "Mentor Wise WMR Received but Diet Not Sent - Over Due (Last 48 Hours) Data Sheet"
         },
         'NAF Sent Diet Not Receieved Over Due 24 hrs. Sheet': {
             'query':
             data_query.nafReceivedDietNotSendOD(),
             'title':
-            f"Mentor Wise NAF Received but Diet Not Sent - Over Due (Last 48 Hours) Data Sheet"
+            "Mentor Wise NAF Received but Diet Not Sent - Over Due (Last 48 Hours) Data Sheet"
         },
         'All Nutritionist Assigned Un-Paid Leads Data Sheet': {
             'query':
@@ -441,18 +487,23 @@ elif option == 'Data Sheet':
             'query':
             data_query.leadBasicStackNotUpgradedDataSheet(),
             'title':
-            f"Basic Stack Upgraded to Special Stack (Lead) (Last Six Month) Data Sheet"
+            "Basic Stack Upgraded to Special Stack (Lead) (Last Six Month) Data Sheet"
         },
         "Basic Stack Not Upgraded to Speical Stack (OCR) Data Sheet": {
             'query':
             data_query.ocrBasicStackNotUpgradedDataSheet(),
             'title':
-            f"Basic Stack Upgraded to Special Stack (OCR) (Last Six Month) Data Sheet"
+            "Basic Stack Upgraded to Special Stack (OCR) (Last Six Month) Data Sheet"
         },
         "COM Call Not Done Data Sheet": {
             'query': data_query.comCallNotDoneDataSheet(),
             'title':
             f"Mentor Wise COM Call Not Done {month} {year} MTD Data Sheet"
+        },
+        "Rate Shared Sheet To Abdul": {
+            'query': data_query.rateSharedSheetToAbdul(),
+            'title':
+            f"Rate Shared Sheet To Abdul {month} {year} MTD Summary Sheet"
         },
         "Good Weight Loss Active Clients Data Sheet": {
             'query':
@@ -464,6 +515,11 @@ elif option == 'Data Sheet':
             'query': data_query.halfTimeFeedbackDataSheet(),
             'title':
             f"Mentor Wise Half Time Feedback {month} {year} Data Sheet"
+        },
+        "Final Feedback Data Sheet": {
+            'query': data_query.finalFeedbackDataSheet(),
+            'title':
+            f"Mentor Wise Final Feedback {month} {year} Data Sheet"
         }
     }
 

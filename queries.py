@@ -1,5 +1,7 @@
 import warnings
 
+from sqlalchemy.orm import query
+
 warnings.filterwarnings('ignore')
 # import re
 
@@ -840,6 +842,12 @@ class summaryQueries:
         '''
     return query
 
+  def inductionCallSummaryQuery(self):
+    query = f'''
+        SELECT 'Induction Call' as Mentor ,COUNT(od.userid) AS "TOTAL PURCHASE", SUM(CASE WHEN (SELECT COUNT(user_id) FROM bn_consultation_call_booking WHERE counsellor_id = 215 AND call_status = 'done' AND user_id = od.userid) > 0 THEN 1 ELSE 0 END) AS "CALL DONE", SUM(CASE WHEN (SELECT COUNT(user_id) FROM bn_consultation_call_booking WHERE counsellor_id = 215 AND call_status = 'done' AND user_id = od.userid) = 0 THEN 1 ELSE 0 END) AS "CALL NOT DONE" FROM order_details od WHERE DATE(od.date) >= DATE(DATE_FORMAT(NOW(), '%Y-%m-01')) AND od.order_type IN ('New', 'OMR');  
+    '''
+    return query
+    
   def halfTimeFeedbackSummaryQuery(self):
     query = f'''
             SELECT Mentor,
@@ -1358,21 +1366,22 @@ class summaryQueries:
 
   def spinNotAssignedTillNow(self):
     query = f'''
+     SELECT
       ( (SELECT COUNT(DISTINCT email) 
-         FROM `lead_management` 
-         WHERE `enquiry_from` LIKE 'Spin to Win Lead' 
-           AND `created` >= '2025-03-01 00:05:47' 
-           AND lead_type = 'New' 
-           AND SUBSTRING(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(phone, ' ', ''), '+', ''), '-', ''), ' ', ''), ' ', ''), LENGTH(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(phone, ' ', ''), '+', ''), '-', ''), ' ', ''), ' ', ''))-8, 9)
-               NOT IN (SELECT SUBSTRING(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(mobile_no1, ' ', ''), '+', ''), '-', ''), ' ', ''), ' ', ''), LENGTH(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(mobile_no1, ' ', ''), '+', ''), '-', ''), ' ', ''), ' ', ''))-8, 9) FROM `billing_details`)) -
-        (SELECT COUNT(DISTINCT email) 
-         FROM `lead_management` 
-         WHERE `enquiry_from` LIKE 'Spin to Win Lead' 
-           AND `created` >= '2025-03-01 00:05:47' 
-           AND lead_type = 'New' 
-           AND email IN (SELECT email FROM lead_action)
-           AND SUBSTRING(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(phone, ' ', ''), '+', ''), '-', ''), ' ', ''), ' ', ''), LENGTH(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(phone, ' ', ''), '+', ''), '-', ''), ' ', ''), ' ', ''))-8, 9)
-               NOT IN (SELECT SUBSTRING(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(mobile_no1, ' ', ''), '+', ''), '-', ''), ' ', ''), ' ', ''), LENGTH(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(mobile_no1, ' ', ''), '+', ''), '-', ''), ' ', ''), ' ', ''))-8, 9) FROM `billing_details`))) AS Not_Assigned_Leads
+        FROM lead_management 
+        WHERE enquiry_from LIKE 'Spin to Win Lead' 
+          AND created >= '2025-03-01 00:05:47' 
+          AND lead_type = 'New' 
+          AND SUBSTRING(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(phone, ' ', ''), '+', ''), '-', ''), ' ', ''), ' ', ''), LENGTH(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(phone, ' ', ''), '+', ''), '-', ''), ' ', ''), ' ', ''))-8, 9)
+              NOT IN (SELECT SUBSTRING(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(mobile_no1, ' ', ''), '+', ''), '-', ''), ' ', ''), ' ', ''), LENGTH(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(mobile_no1, ' ', ''), '+', ''), '-', ''), ' ', ''), ' ', ''))-8, 9) FROM billing_details)) -
+       (SELECT COUNT(DISTINCT email) 
+        FROM lead_management 
+        WHERE enquiry_from LIKE 'Spin to Win Lead' 
+          AND created >= '2025-03-01 00:05:47' 
+          AND lead_type = 'New' 
+          AND email IN (SELECT email FROM lead_action)
+          AND SUBSTRING(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(phone, ' ', ''), '+', ''), '-', ''), ' ', ''), ' ', ''), LENGTH(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(phone, ' ', ''), '+', ''), '-', ''), ' ', ''), ' ', ''))-8, 9)
+              NOT IN (SELECT SUBSTRING(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(mobile_no1, ' ', ''), '+', ''), '-', ''), ' ', ''), ' ', ''), LENGTH(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(mobile_no1, ' ', ''), '+', ''), '-', ''), ' ', ''), ' ', ''))-8, 9) FROM billing_details))) AS Not_Assigned_Leads;
     '''
     return query
 
@@ -1525,7 +1534,65 @@ class summaryQueries:
               email_id
             FROM
               order_details
-          ) AND (email NOT LIKE '%@balancenutrition.in%' OR email NOT LIKE '%test%');
+          ) AND (email NOT LIKE '%@balancenutrition.in%' OR email NOT LIKE '%test%') AND  (primary_source not like '%insta%' or primary_source not like '%face%' or utm_source not like '%inst%' );
+        '''
+    return query
+
+  def currentHsStatus(self):
+    query = f'''
+    SELECT
+    (SELECT COUNT(*)
+     FROM lead_management
+     WHERE enquiry_from LIKE '%BN health%'
+       AND DATE(created) = CURDATE()
+       AND email NOT IN (SELECT email_id FROM order_details)
+       AND lead_type IN ('New', 'OLR', '')) AS NEW_HS;
+       '''
+    return query
+
+  def currentHsStatus1(self):
+    query = f'''
+    SELECT
+    
+    (SELECT COUNT(*)
+     FROM lead_management
+     WHERE enquiry_from LIKE '%BN health%'
+       AND DATE(created) = CURDATE()
+       AND email NOT IN (SELECT email_id FROM order_details)
+       AND email NOT IN (SELECT email FROM lead_action)
+       AND lead_type IN ('New', 'OLR', '')) AS HS_NOT_ASSIGNED;
+       '''
+    return query
+
+  def yesterdayAllHSInsta(self):
+    query = f'''
+        SELECT
+          COUNT(DISTINCT phone) AS Counts
+        FROM
+          lead_management lm
+        WHERE
+          enquiry_from LIKE '%BN health%'
+          AND DATE(created) >=
+          CASE
+          WHEN
+          DAYOFWEEK(NOW()) = 2 THEN DATE(NOW() - INTERVAL 2 DAY)
+          ELSE DATE(NOW() - INTERVAL 1 DAY)
+          END
+          AND(
+            SELECT
+              COUNT(email)
+            FROM
+              lead_management
+            WHERE
+              email = lm.email
+              AND enquiry_from LIKE '%BN health%'
+          ) = 1
+          AND email NOT IN(
+            SELECT
+              email_id
+            FROM
+              order_details
+          ) AND (email NOT LIKE '%@balancenutrition.in%' OR email NOT LIKE '%test%') AND  (primary_source like '%insta%' or primary_source  like '%face%' or utm_source like '%inst%' );
         '''
     return query
 
@@ -2500,10 +2567,12 @@ class dataSheetQueries:
     query = f'''
             SELECT 
             created,
+            assign_date,
             fname,
             gender,
             email,
             phone,
+            note,
             `source`,
             health_score,
             health_category,
@@ -2529,6 +2598,8 @@ class dataSheetQueries:
               lm.fname,
               lm.gender,
               lm.email,
+              la.assign_date,
+              lm.note,
               lm.clean_phone AS phone,
               COALESCE(lm.enquiry_from, lm.primary_source) AS `source`,
               lm.overall_health_score AS health_score,
@@ -2723,6 +2794,246 @@ class dataSheetQueries:
                         'Saloni', 'Nidhi', 'Chanchal', 'Khyati',
                         'Shubhangi'		  
               )	
+
+            GROUP BY
+              lm.phone_suffix) AS sheets
+            WHERE paid_status = 0
+
+            ;
+        '''
+    return query
+
+  def allAssignedUnPaidLeadsSpinDataSheetQuery(self):
+    query = f'''
+            SELECT 
+            created,
+            assign_date,
+            fname,
+            gender,
+            email,
+            phone,
+            note,
+            `source`,
+            health_score,
+            health_category,
+            mentor_comment,
+            medical_issue,
+            lead_status,
+            lead_sub_status,
+            key_insight,
+            referred_by,
+            first_cons,
+            suggested_program_details,
+            `comment`,
+            next_fu_date,
+            next_fu_time,
+            payment_mode,
+            `payment_link`,
+            `payment_link_expiry_date`,
+            package_amount,
+            `prize/offer`,
+            mentor
+            FROM (SELECT
+              DATE(lm.created) AS created,
+              lm.fname,
+              lm.gender,
+              lm.email,
+              la.assign_date,
+              lm.note,
+              lm.clean_phone AS phone,
+              COALESCE(lm.enquiry_from, lm.primary_source) AS `source`,
+              lm.overall_health_score AS health_score,
+              lm.health_category AS health_category,
+              lm.mentor_comment,
+              lm.medical_issue AS medical_issue,
+              COALESCE(lm.status, m1.lead_status) AS lead_status,
+              COALESCE(lm.sub_status, lm.mentor_sub_status) AS lead_sub_status,
+              la.key_insight,
+              (
+                SELECT
+                  CONCAT(
+                    first_name, ' ', last_name, '|', id
+                  )
+                FROM
+                  registries
+                WHERE
+                  email_id = lm.current_url
+              ) AS referred_by,
+              (
+                SELECT
+                  CONCAT(
+                    COMMENT,
+                    '|',
+                    DATE_FORMAT(added_date, '%e %b %Y'),
+                    '|',
+                    (
+                      SELECT
+                        appointment_slots
+                      FROM
+                        `bn_book_appointment_slots_mentor`
+                      WHERE
+                        `id` = slot_id
+                    )
+                  )
+                FROM
+                  `bn_welcome_appointment`
+                WHERE
+                  `name` LIKE CONCAT('%', lm.fname, '%')
+                  AND DATE(added_date) >= DATE(lm.created)
+                  AND TYPE IN('Lead', 'OldLead')
+                  AND order_id = 0
+                  AND call_status = 'done'
+                ORDER BY
+                  id DESC
+                LIMIT
+                  1
+              ) AS first_cons,
+              CASE 
+              WHEN LENGTH(m1.suggested_program) > 3 
+              THEN
+              CONCAT(m1.suggested_program, " | " , m1.sessions, " | " , m1.amount)
+              ELSE ''
+              END 
+
+              AS suggested_program_details,
+              CONCAT(
+                '(',
+                DATEDIFF(NOW(), m1.added_date),
+                ' days ago)'
+              ) AS suggested_ago,
+              m1.comment,
+              m1.next_fu_date,
+              m1.next_fu_time,
+              m1.payment_mode,
+              m1.payment_link,
+              m1.payment_link_expiry_date,
+              ps.package_amount,
+              (
+                SELECT
+                  Prize
+                FROM
+                  leadclient
+                WHERE
+                  phone = REPLACE (lm.phone, '-', '')
+                LIMIT
+                  1
+              ) AS `prize/offer`,
+              la.assign_to AS mentor,	
+              CASE WHEN lm.email IN (
+                SELECT
+                  email_id
+                FROM
+                  order_details
+                WHERE
+                  program_type = 0 
+                  AND DATE(DATE) >= DATE(DATE_FORMAT({self.start_date}, "%Y-%m-01"))
+              )
+              OR phone_suffix IN (
+                SELECT
+                  RIGHT(
+                    REPLACE(
+                      REPLACE(
+                        REPLACE(
+                          REPLACE(
+                            REPLACE(mobile_no1, '(', ''),
+                            ')',
+                            ''
+                          ),
+                          ' ',
+                          ''
+                        ),
+                        '-',
+                        ''
+                      ),
+                      '+',
+                      ''
+                    ),
+                    8
+                  )
+                FROM
+                  billing_details
+                  INNER JOIN (
+                    SELECT
+                      email_id AS email
+                    FROM
+                      order_details
+                    WHERE
+                      program_type = 0 
+                      AND DATE(DATE) >= DATE(DATE_FORMAT({self.start_date}, "%Y-%m-01"))
+                  ) AS od2 ON od2.email = email_id
+              ) THEN 1 ELSE 0 END AS paid_status	
+            FROM
+              (
+                SELECT
+                  *,
+                  REPLACE(
+                    REPLACE(
+                      REPLACE(
+                        REPLACE(
+                          REPLACE(phone, '(', ''),
+                          ')',
+                          ''
+                        ),
+                        ' ',
+                        ''
+                      ),
+                      '-',
+                      ''
+                    ),
+                    '+',
+                    ''
+                  ) AS clean_phone,
+                  RIGHT(
+                    REPLACE(
+                      REPLACE(
+                        REPLACE(
+                          REPLACE(
+                            REPLACE(phone, '(', ''),
+                            ')',
+                            ''
+                          ),
+                          ' ',
+                          ''
+                        ),
+                        '-',
+                        ''
+                      ),
+                      '+',
+                      ''
+                    ),
+                    8
+                  ) AS phone_suffix
+                FROM
+                  lead_management
+              ) lm
+              LEFT JOIN lead_management lm2 ON (
+                lm.email = lm2.email
+                AND lm.id < lm2.id
+              )	
+              INNER JOIN lead_action la 
+              ON (la.email = lm.email 
+              AND DATE(la.assign_date) 
+              BETWEEN DATE('{self.start_date}') AND DATE('{self.end_date}'))
+              LEFT JOIN lead_action la2 ON (
+                la.email = la2.email	AND la.id < la2.id
+              )
+              LEFT JOIN bn_suggested_program m1
+              ON (lm.email = m1.email_id 
+              AND DATE(m1.added_date) >= DATE(DATE_FORMAT(NOW(), "%Y-%m-01")))
+              LEFT JOIN bn_suggested_program m2
+              ON (m1.email_id = m2.email_id AND m1.id < m2.id)
+              LEFT JOIN program_session ps 
+              ON (m1.program_id = ps.program_id AND m1.sessions = ps.package_sess_duration)	
+            WHERE
+              lm2.id IS NULL
+              AND la2.id IS NULL
+              AND m2.id IS NULL	
+              AND la.assign_to NOT IN (
+                'Client', 'Client Services',
+                        'Nikita', 'NikitaK', 'Select', 'Vrushali',
+                        'Saloni', 'Nidhi', 'Chanchal', 'Khyati',
+                        'Shubhangi'		  
+              )	and REPLACE(lm.phone,'-','') in (SELECT phone FROM leadclient)
 
             GROUP BY
               lm.phone_suffix) AS sheets
@@ -3351,6 +3662,226 @@ class dataSheetQueries:
         '''
     return query
 
+  def allActiveDataSheetQuery(self):
+    query = f''' 
+    SELECT
+    a.id AS client_id,
+        CONCAT(a.first_name, ' ', a.last_name) AS Name,
+        CONCAT("'", bd.mobile_no1) AS Phone,    
+        a.email_id,
+        a.my_wallet,    
+    od.program_name as Current_Program,
+
+    od.program_session as Current_Program_Session_Total,   
+        (
+        SELECT
+            suggested_program
+        FROM
+            bn_suggested_program
+        WHERE
+            added_date >= '2025-03-01 00:00:00' AND user_id = a.id AND program_id IN(
+                34,
+                108,
+                92,
+                75,
+                37,
+                35,
+                36,
+                134,
+                38,
+                73,162,163
+            )
+        LIMIT 1
+    ) AS sugg_program_name,
+    (                                                                                                    
+                       od.program_session - CASE WHEN (                                                                                                                                   
+                    SELECT                                                                                                                                 
+                        actual_session                                                                                                         
+                    FROM                                                                                                                                   
+                        diet_session_log                                                                                                                   
+                    WHERE                                                                                                                                  
+                       order_id=od.order_id and user_id = a.id AND is_deleted = 0 AND diet_status = '4'  ORDER by diet_id desc limit 1                                                                         
+                )>0 THEN (                                                                                                                                   
+                    SELECT                                                                                                                                 
+                        actual_session                                                                                                         
+                    FROM                                                                                                                                   
+                        diet_session_log                                                                                                                   
+                    WHERE                                                                                                                                  
+                       order_id=od.order_id and user_id = a.id AND is_deleted = 0 AND diet_status = '4'  ORDER by diet_id desc limit 1                                                                         
+                ) ELSE 0 END                                                                                                                                         
+                    )  as Current_Program_Session_Pending,
+                    (SELECT count(*) from order_details WHERE userid=od.userid and program_status in (3,1) ) as Program_Number,
+                    a.user_status,
+                    (CASE WHEN (SELECT count(*) from order_details WHERE userid=od.userid and program_status=4)>0 THEN 'Yes' ELSE 'NO' END) as Adv_Program,
+                    (SELECT GROUP_CONCAT(CONCAT(program_name,'(',program_session*10,' Days),')) from order_details WHERE userid=od.userid and program_status=4) as Adv_Program_Name,
+                    round(((select weight from weight_monitor_record_22 where user_id = a.id and order_id=od.order_id and is_deleted=0 order by wmr_id desc limit 1)-(select weight from weight_monitor_record_22 where user_id = a.id and order_id=od.order_id and is_deleted=0 order by wmr_id asc limit 1)),2) as weight_loss_current_program,
+           CASE WHEN  ((                                                                                                    
+                       od.program_session - CASE WHEN (                                                                                                                                   
+                    SELECT                                                                                                                                 
+                        actual_session                                                                                                         
+                    FROM                                                                                                                                   
+                        diet_session_log                                                                                                                   
+                    WHERE                                                                                                                                  
+                       order_id=od.order_id and user_id = a.id AND is_deleted = 0 AND diet_status = '4'  ORDER by diet_id desc limit 1                                                                         
+                )>0 THEN (                                                                                                                                   
+                    SELECT                                                                                                                                 
+                        actual_session                                                                                                         
+                    FROM                                                                                                                                   
+                        diet_session_log                                                                                                                   
+                    WHERE                                                                                                                                  
+                       order_id=od.order_id and user_id = a.id AND is_deleted = 0 AND diet_status = '4'  ORDER by diet_id desc limit 1                                                                         
+                ) ELSE 0 END                                                                                                                                         
+                    )+(CASE WHEN (SELECT SUM(program_session) from order_details WHERE userid=od.userid and program_status in (4) )>0 THEN (SELECT SUM(program_session) from order_details WHERE userid=od.userid and program_status in (4) ) ELSE 0 END)) <4 THEN 'Tailend' else 'NA' END as Tailend_Status,
+           au.first_name as mentor
+    FROM
+        registries AS a
+    JOIN order_details od ON
+        a.id = od.userid
+    JOIN admin_user AS au
+    ON
+        a.mentor_id = au.admin_id
+    JOIN billing_details AS bd
+    ON
+        a.id = bd.user_id
+    WHERE
+         a.user_status IN(
+            'Active',
+            'notstarted',
+            'cleanseactive',
+            'Dormant',
+            'Onhold'
+        ) and od.program_status=1 and date(od.extended_date) >= date(now())
+    GROUP BY
+        id;
+    '''
+
+    return query
+
+  def allOcrDataSheetQuery(self):
+    query = f''' 
+    SELECT
+    a.id AS client_id,
+        CONCAT(a.first_name, ' ', a.last_name) AS Name,
+        CONCAT("'", bd.mobile_no1) AS Phone,    
+        a.email_id,
+        a.my_wallet,    
+    od.program_name as Current_Program,
+
+    od.program_session as Current_Program_Session_Total,   
+        (
+        SELECT
+            suggested_program
+        FROM
+            bn_suggested_program
+        WHERE
+            added_date >= '2025-03-01 00:00:00' AND user_id = a.id AND program_id IN(
+                34,
+                108,
+                92,
+                75,
+                37,
+                35,
+                36,
+                134,
+                38,
+                73,162,163
+            )
+        LIMIT 1
+    ) AS sugg_program_name,
+    (                                                                                                    
+                       od.program_session - CASE WHEN (                                                                                                                                   
+                    SELECT                                                                                                                                 
+                        actual_session                                                                                                         
+                    FROM                                                                                                                                   
+                        diet_session_log                                                                                                                   
+                    WHERE                                                                                                                                  
+                       order_id=od.order_id and user_id = a.id AND is_deleted = 0 AND diet_status = '4'  ORDER by diet_id desc limit 1                                                                         
+                )>0 THEN (                                                                                                                                   
+                    SELECT                                                                                                                                 
+                        actual_session                                                                                                         
+                    FROM                                                                                                                                   
+                        diet_session_log                                                                                                                   
+                    WHERE                                                                                                                                  
+                       order_id=od.order_id and user_id = a.id AND is_deleted = 0 AND diet_status = '4'  ORDER by diet_id desc limit 1                                                                         
+                ) ELSE 0 END                                                                                                                                         
+                    )  as Current_Program_Session_Pending,
+                    (SELECT count(*) from order_details WHERE userid=od.userid and program_status in (3,1) ) as Program_Number,
+                    a.user_status,                   
+           au.first_name as mentor
+
+
+    FROM
+        registries AS a
+    JOIN order_details od ON
+        a.id = od.userid
+    JOIN admin_user AS au
+    ON
+        a.mentor_id = au.admin_id
+    JOIN billing_details AS bd
+    ON
+        a.id = bd.user_id
+    WHERE
+         a.user_status NOT IN(
+            'InActive',
+            'Active',
+            'notstarted',
+            'cleanseactive',
+            'Dormant',
+            'Onhold'
+        ) 
+        GROUP BY id;
+    '''
+
+    return query
+    
+  def dormantDataSheet(self):
+    query = f'''
+    SELECT
+          dsl.user_id,
+           rg.mentor_id,
+         rg.first_name,
+         rg.last_name,
+          rg.email_id,
+          rg.my_wallet,             
+          SUBSTRING_INDEX(bd.mobile_no1, '/', 1) AS phone,
+          rg.id,
+    DATEDIFF( od.extended_date , CURRENT_DATE()) AS datedif,
+             (od.program_session-dsl.actual_session) AS bal_session,
+     DATE(dsl.start_date) + INTERVAL 12 DAY AS wmr_reminder_14day,
+          od.program_name,
+            od.extended_date AS Validity_date,
+            DATE_FORMAT(od.extended_date, '%D %b %Y') as enddate,
+            od.start_date ,
+            od.program_session,
+          dsl.actual_session,
+          rg.user_status,
+           od.program_session,
+          rg.cs_fu_note,
+             auz.first_name AS mentor
+      FROM
+          diet_session_log dsl
+      LEFT JOIN registries rg ON
+          dsl.user_id = rg.id
+      LEFT JOIN order_details od ON
+          dsl.order_id = od.order_id
+                 LEFT OUTER JOIN admin_user auz ON
+              od.mentor_id = auz.admin_id
+               LEFT JOIN billing_details bd ON
+              rg.id = bd.user_id
+      LEFT JOIN weight_monitor_record_22 wmr ON
+          dsl.actual_session = wmr.session AND wmr.session_duration = 10 AND dsl.diet_id = wmr.diet_id AND wmr.is_deleted = 0
+      WHERE
+          dsl.diet_id =
+      (SELECT diet_id FROM diet_session_log WHERE user_id = dsl.user_id ORDER BY diet_id DESC LIMIT 1) 
+      AND dsl.is_deleted = 0 AND dsl.diet_status = 4 
+        AND DATE(dsl.start_date) <= (CURDATE() - INTERVAL 19 DAY) 
+      AND wmr.weight IS NULL AND od.program_duration_days >= 10 
+                  AND od.extended_date >= CURRENT_DATE()
+      AND od.program_status = 1 
+      AND LCASE(rg.user_status) = 'dormant'
+    '''
+    return query
+    
   def inductionCallNotDoneDataSheet(self):
     query = f'''
                 SELECT
@@ -3764,6 +4295,109 @@ round((SELECT weight_monitor_record_22.weight from weight_monitor_record_22 WHER
 
 
         '''
+    return query
+
+  def rateSharedSheetToAbdul(self):
+    query = f'''
+    SELECT   
+       count(m1.id) as Units,
+        sum(m1.amount) as Amounts,
+
+        (
+        SELECT
+            first_name
+        FROM
+            admin_user
+        WHERE
+            admin_id = m1.mentor_id
+            LIMIT 1
+    ) AS Mentor_Name,
+    Case when (
+        SELECT
+            user_status
+        FROM
+            registries
+        WHERE
+            email_id = m1.email_id
+             LIMIT 1
+    ) in ('Active', 'notstarted', 'cleanseactive', 'Dormant', 'Onhold') then 'Active' WHEN (
+        SELECT
+            user_status
+        FROM
+            registries
+        WHERE
+            email_id = m1.email_id
+             LIMIT 1
+    ) in (
+            'Dropouts',
+            'Completeds',
+            'fs',
+            'Completed',
+            'Dropout',
+            'Droputss',
+            'Completedss'
+        ) THEN 'OCR' ELSE 'Lead / Reference' END AS user_status
+
+    FROM
+        bn_suggested_program m1
+    LEFT JOIN bn_suggested_program m2 ON
+        (
+            m1.email_id = m2.email_id AND m1.id < m2.id
+        )
+    WHERE
+        m2.id IS NULL AND DATE(m1.added_date) >= DATE(DATE_FORMAT(NOW(), "%Y-%m-01")) AND m1.lead_status NOT IN('pitch1') AND m1.email_id NOT IN(
+        SELECT
+            email_id
+        FROM
+            order_details
+        WHERE
+            DATE(DATE) >= DATE(DATE_FORMAT(NOW(), "%Y-%m-01")) AND program_type = 0
+    ) AND m1.paid_status NOT IN(1, 2) GROUP by Mentor_Name,user_status
+
+    UNION ALL
+
+    SELECT	
+      COUNT(DISTINCT t1.id) AS Units,
+      SUM(amount) AS Amounts,
+      assign_to AS Mentor_Name,
+      'Lead / Reference' AS user_status
+    FROM
+      (
+        SELECT
+          a.id,
+          a.assign_to,
+          a.email,
+          REPLACE(
+            SUBSTR(
+              a.key_insight,
+              LOCATE("@", a.key_insight)+ 1,
+              6
+            ),
+            "<",
+            ""
+          ) AS amount,
+          b.status
+        FROM
+          lead_action AS a
+          INNER JOIN lead_management AS b ON a.email = b.email
+        WHERE
+          DATE(a.key_insight_date) >= DATE(DATE_FORMAT(NOW(), "%Y-%m-01"))
+          AND b.status IS NOT NULL
+          AND b.status != " "
+          AND a.key_insight IS NOT NULL
+          AND a.key_insight != " "
+          AND b.status != 'Completed'
+          AND a.key_insight LIKE CONCAT(
+            "%",
+            DATE_FORMAT(NOW(), '%b %Y'),
+            "%"
+          )
+        GROUP BY
+          a.email
+      ) AS t1
+    GROUP BY
+      assign_to;
+    '''
     return query
 
   def halfTimeFeedbackDataSheet(self):

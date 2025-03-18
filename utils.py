@@ -10,6 +10,7 @@ from decimal import Decimal
 import requests
 from googleapiclient.errors import HttpError
 # Removed pywhatkit import as it's not used
+# import pywhatkit
 import matplotlib.pyplot as plt
 import io
 import tempfile
@@ -49,6 +50,7 @@ except Exception as e:
         "Failed to initialize Google credentials. Please check your service account configuration."
     )
     raise e
+
 
 
 class summaryTable:
@@ -382,19 +384,23 @@ class summaryTable:
 
 
 def socialMediaNewLeadSummaryGenerator(queries):
-    summaryQuery, todayAssignedQuery ,hsNotAssignedTillNow,spinNotAssignedTillNow = queries
+    summaryQuery, todayAssignedQuery, hsNotAssignedTillNow, spinNotAssignedTillNow = queries
     with engine.connect() as connection:
         summaryQueryResult = connection.execute(sql.text(summaryQuery))
         todayAssignedResult = connection.execute(sql.text(todayAssignedQuery))
-        hsNotAssignedTillNowResult = connection.execute(sql.text(hsNotAssignedTillNow))
-         spinNotAssignedTillNowResult = connection.execute(sql.text(spinNotAssignedTillNow))
+        hsNotAssignedTillNowResult = connection.execute(
+            sql.text(hsNotAssignedTillNow))
+        spinNotAssignedTillNowResult = connection.execute(
+            sql.text(spinNotAssignedTillNow))
 
         summaryData = pd.DataFrame(summaryQueryResult.fetchall(),
                                    columns=summaryQueryResult.keys())
-        hsNotAssignedTillNowData = pd.DataFrame(hsNotAssignedTillNowResult.fetchall(),
-               columns=hsNotAssignedTillNowResult.keys())
-        spinNotAssignedTillNowData = pd.DataFrame(spinNotAssignedTillNowResult.fetchall(),
-               columns=spinNotAssignedTillNowResult.keys())
+        hsNotAssignedTillNowData = pd.DataFrame(
+            hsNotAssignedTillNowResult.fetchall(),
+            columns=hsNotAssignedTillNowResult.keys())
+        spinNotAssignedTillNowData = pd.DataFrame(
+            spinNotAssignedTillNowResult.fetchall(),
+            columns=spinNotAssignedTillNowResult.keys())
         todayAssignedData = pd.DataFrame(todayAssignedResult.fetchall(),
                                          columns=todayAssignedResult.keys())
     summary_format = [
@@ -427,17 +433,48 @@ def socialMediaNewLeadSummaryGenerator(queries):
     st.markdown(report, unsafe_allow_html=True)
 
 
+
+def currentHsStatusReportGenerator(queries): 
+    currentHsStatusQuery, currentHsStatusQuery1 = queries
+    with engine.connect() as connection:
+        spinNotAssignedTillNowResult = connection.execute(
+            sql.text(currentHsStatusQuery))
+        spinNotAssignedTillNowData = pd.DataFrame(
+            spinNotAssignedTillNowResult.fetchall(),
+            columns=spinNotAssignedTillNowResult.keys())
+
+        spinNotAssignedTillNowResult1 = connection.execute(
+            sql.text(currentHsStatusQuery1))
+        spinNotAssignedTillNowData1 = pd.DataFrame(
+            spinNotAssignedTillNowResult1.fetchall(),
+            columns=spinNotAssignedTillNowResult1.keys())
+
+        
+        report = f'''
+        Good Afternoon,<br>
+        *Total HS Received* - {spinNotAssignedTillNowData['NEW_HS'].iloc[0]}<br>
+        *Total HS Unassigned* - {spinNotAssignedTillNowData1['HS_NOT_ASSIGNED'].iloc[0]}
+        '''
+        st.markdown(report, unsafe_allow_html=True)
+
 def morningLeadReportGenerator(queries):
-    callBookedYesterdayQuery, yesterdayHSQuery, yesterdayUnassignedHSQuery, yesterdayUnassignedRegQuery = queries
+    callBookedYesterdayQuery , yesterdayHSQuery, yesterdayHSInstaQuery, spinNotAssignedTillNow, yesterdayUnassignedHSQuery, yesterdayUnassignedRegQuery = queries
     with engine.connect() as connection:
         callBookedYesterday = connection.execute(
             sql.text(callBookedYesterdayQuery)).fetchall()[0][0]
         yesterdayHS = connection.execute(
             sql.text(yesterdayHSQuery)).fetchall()[0][0]
+        yesterdayHSInsta = connection.execute(
+            sql.text(yesterdayHSInstaQuery)).fetchall()[0][0]
         yesterdayUnassignedHS = connection.execute(
             sql.text(yesterdayUnassignedHSQuery)).fetchall()[0][0]
         yesterdayUnassignedReg = connection.execute(
             sql.text(yesterdayUnassignedRegQuery)).fetchall()[0][0]
+        spinNotAssignedTillNowResult = connection.execute(
+            sql.text(spinNotAssignedTillNow))
+        spinNotAssignedTillNowData = pd.DataFrame(
+            spinNotAssignedTillNowResult.fetchall(),
+            columns=spinNotAssignedTillNowResult.keys())
 
     day_string = "Saturday & Sunday" if date.today().weekday(
     ) == 0 else "Yesterday"
@@ -447,9 +484,11 @@ def morningLeadReportGenerator(queries):
     Below are stats. for {day_string}.
 
     Consultation Calls Booked By Leads On Website - {callBookedYesterday}<br>
-    Total HS Leads - {yesterdayHS}<br>
-    Total Unassigned HS(Stage 3 & 4) - {yesterdayUnassignedHS}  
-    Total Unassigned Registration - {yesterdayUnassignedReg}
+    HS for Yesterday excluding Insta Leads (All) - {yesterdayHS}<br>
+    HS for Yesterday Insta Leads - {yesterdayHSInsta}<br>
+    Total Unassigned HS(Stage 3 & 4) - {yesterdayUnassignedHS}<br>
+    Total Unassigned Registration - {yesterdayUnassignedReg}<br>
+    *Total Unassigned SPIN* - {spinNotAssignedTillNowData['Not_Assigned_Leads'].iloc[0]}
     '''
     st.markdown(report, unsafe_allow_html=True)
 
