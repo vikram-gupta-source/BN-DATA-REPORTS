@@ -17,4 +17,5 @@ dependencies = [
     "sqlalchemy>=2.0.39",
     "streamlit>=1.43.2",
     "pymysql>=1.1.0",
+    "pywhatkit==5.4",
 ]

@@ -39,7 +39,9 @@ import json
 import os
 
 try:
-    service_account_info = json.loads(os.environ['GOOGLE_SERVICE_ACCOUNT'])
+    with open('valued-door-401509-e67082c917f7.json', 'r') as f:
+     service_account_info = json.load(f)
+    # service_account_info = json.loads('valued-door-401509-e67082c917f7.json')
     creds = Credentials.from_service_account_info(service_account_info,
                                                   scopes=scope)
     client = gspread.authorize(creds)
@@ -458,10 +460,14 @@ def currentHsStatusReportGenerator(queries):
         st.markdown(report, unsafe_allow_html=True)
 
 def morningLeadReportGenerator(queries):
-    callBookedYesterdayQuery , yesterdayHSQuery, yesterdayHSInstaQuery, spinNotAssignedTillNow, yesterdayUnassignedHSQuery, yesterdayUnassignedRegQuery = queries
+    callBookedYesterdayQuery , yesterdayHSQuery, yesterdayHSInstaQuery, spinNotAssignedTillNow, yesterdayUnassignedHSQuery, yesterdayUnassignedRegQuery ,callBookedYesterdayTotalQuery ,callBookedYesterdayTotalSplitQuery = queries
     with engine.connect() as connection:
         callBookedYesterday = connection.execute(
             sql.text(callBookedYesterdayQuery)).fetchall()[0][0]
+        callBookedTotalYesterday = connection.execute(
+            sql.text(callBookedYesterdayTotalQuery)).fetchall()[0][0]
+        callBookedTotalSplitYesterday = connection.execute(
+            sql.text(callBookedYesterdayTotalSplitQuery)).fetchall()[0][0]
         yesterdayHS = connection.execute(
             sql.text(yesterdayHSQuery)).fetchall()[0][0]
         yesterdayHSInsta = connection.execute(
@@ -488,7 +494,8 @@ def morningLeadReportGenerator(queries):
     HS for Yesterday Insta Leads - {yesterdayHSInsta}<br>
     Total Unassigned HS(Stage 3 & 4) - {yesterdayUnassignedHS}<br>
     Total Unassigned Registration - {yesterdayUnassignedReg}<br>
-    *Total Unassigned SPIN* - {spinNotAssignedTillNowData['Not_Assigned_Leads'].iloc[0]}
+    *Total Unassigned SPIN* - {spinNotAssignedTillNowData['Not_Assigned_Leads'].iloc[0]}<br>
+    *Total Calls booked by Counsellor* - {callBookedTotalYesterday}<br>{callBookedTotalSplitYesterday}
     '''
     st.markdown(report, unsafe_allow_html=True)
 

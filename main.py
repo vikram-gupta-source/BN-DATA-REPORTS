@@ -35,6 +35,8 @@ reports = [
     "Khyati Ma'ams' Morning Lead Consultaion Report",
     "Current HS Status Report",
     'OCR Client Summary Report', 'All Active Client Summary Report',
+    'Diet Count Summary (Except Monday Morning) Report',
+    'Diet Count Summary (Monday Morning) Report',
     'All Active Clients (Plat & Preg) Summary Report',
     'New & OL(Without Ref) Summary Report', 'Counsellor Sales Analysis Report',
     'Basic Stack Not Upgraded To Special Stack Summary Report(Lead)',
@@ -130,6 +132,22 @@ if option == 'Summary Report':
             'table_width': 11,
             'table_font_size': 11,
             'title_space': 2.25
+        },
+        'Diet Count Summary (Except Monday Morning) Report': {
+            'query': summary_query.dietCountSummaryOther(),
+            'title': f"Diet Count Summary (Except Monday Morning) Report",
+            'title_font_size': 14,
+            'table_width': 13,
+            'table_font_size': 9,
+            'title_space': 2.4
+        },
+        'Diet Count Summary (Monday Morning) Report': {
+            'query': summary_query.dietCountSummaryMonday(),
+            'title': f"Diet Count Summary (Monday Morning) Report",
+            'title_font_size': 14,
+            'table_width': 13,
+            'table_font_size': 9,
+            'title_space': 2.4
         },
         'New & OL(Without Ref) Summary Report': {
             'query': summary_query.leadWithoutRefSummaryQuery(),
@@ -333,7 +351,9 @@ if option == 'Summary Report':
                 summary_query.yesterdayAllHSInsta(),
                 summary_query.spinNotAssignedTillNow(),
                 summary_query.previousDayUnassignedHS(),
-                summary_query.previousDayUnassignedRegistration()
+                summary_query.previousDayUnassignedRegistration(),
+                summary_query.consultationCallBookedYesterdayTotal(),
+                summary_query.consultationCallBookedYesterdayTotalSplit()
             ]
             morningLeadReportGenerator(queries)
 
@@ -538,7 +558,7 @@ elif option == 'Data Sheet':
                     data_sheet.mentorwiseDivideSheets)
                 sheet = sheet_future.result()  # Get the result of the future
 
-            st.markdown(f"Required Sheet Has Been Cooked !! :<br>{sheet}",
+            st.markdown(f"Required Sheet Has Been Cooked !! :<br><br><br>{title}<br><br>Sheet Link: <br><br>{sheet}",
                         unsafe_allow_html=True)
 
 elif option == 'Remove Paid Data':

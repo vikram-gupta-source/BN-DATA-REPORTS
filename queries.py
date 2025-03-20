@@ -847,6 +847,649 @@ class summaryQueries:
         SELECT 'Induction Call' as Mentor ,COUNT(od.userid) AS "TOTAL PURCHASE", SUM(CASE WHEN (SELECT COUNT(user_id) FROM bn_consultation_call_booking WHERE counsellor_id = 215 AND call_status = 'done' AND user_id = od.userid) > 0 THEN 1 ELSE 0 END) AS "CALL DONE", SUM(CASE WHEN (SELECT COUNT(user_id) FROM bn_consultation_call_booking WHERE counsellor_id = 215 AND call_status = 'done' AND user_id = od.userid) = 0 THEN 1 ELSE 0 END) AS "CALL NOT DONE" FROM order_details od WHERE DATE(od.date) >= DATE(DATE_FORMAT(NOW(), '%Y-%m-01')) AND od.order_type IN ('New', 'OMR');  
     '''
     return query
+
+  def dietCountSummaryMonday(self):
+    query = f'''
+         SELECT
+             mentors.mentor as Mentor,
+             COALESCE(wmrs.WMR, 0) AS WMR,
+             COALESCE(nafs.NAF, 0) AS NAF,
+             COALESCE(notstarteds.NotStarted, 0) AS NotStarted,
+             COALESCE(yesterday_diet_ods.Diet_OD, 0) AS Yesterday_Diet_OD,
+             COALESCE(saturday_diet_ods.Diet_OD, 0) AS Saturday_Diet_OD,
+             COALESCE(onhold_ods.OnholdOD, 0) AS OnholdOD,
+             COALESCE(pitch_count.pitched, 0) AS yesterday_pitched
+         FROM
+             (
+                 SELECT
+                     first_name AS mentor
+                 FROM
+                     admin_user
+                  WHERE admin_id in (SELECT DISTINCT mentor_id FROM registries WHERE mentor_id NOT IN (209, 196, 0, 246, 10, 268, 263))
+             ) AS mentors
+         LEFT JOIN (
+             SELECT
+                 (SELECT first_name FROM admin_user WHERE admin_id = r.mentor_id) AS mentor,
+                 COUNT(r.mentor_id) AS WMR
+             FROM
+                 registries r
+             LEFT JOIN (
+                 SELECT
+                     m1.session,
+                     m1.order_id,
+                     m1.user_id,
+                     m1.wmr_id,
+                     m1.session_duration,
+                     m1.is_deleted,
+                     m1.added_date,
+                     m1.posted_date
+                 FROM
+                     weight_monitor_record_22 m1
+                 LEFT JOIN weight_monitor_record_22 m2 ON (
+                     m1.user_id = m2.user_id
+                     AND m1.wmr_id < m2.wmr_id
+                     AND m1.diet_id = m2.diet_id
+                 )
+                 WHERE
+                     m2.wmr_id IS NULL
+                     AND m1.session_duration = 10
+                     AND m1.is_deleted = 0
+             ) wmr ON wmr.user_id = r.id
+             LEFT JOIN order_details od ON wmr.order_id = od.order_id
+             WHERE
+                 od.program_status = 1
+                  AND 
+                                 (CASE                         
+                                 WHEN TIME(NOW()) BETWEEN '12:00:00' AND '15:00:00'  THEN
+                                 wmr.added_date 
+                  BETWEEN DATE_SUB(CURDATE(), INTERVAL 1 DAY) + INTERVAL '18:00:00'            HOUR_SECOND AND CURDATE() + INTERVAL '12:15:00' HOUR_SECOND         
+                  WHEN TIME(NOW()) BETWEEN '16:00:00' AND '19:00:00' THEN
+                  wmr.added_date 
+                  BETWEEN DATE_SUB(CURDATE(), INTERVAL 1 DAY) + INTERVAL '18:00:00'            HOUR_SECOND AND CURDATE() + INTERVAL '16:15:00' HOUR_SECOND
+                  ELSE
+                  wmr.added_date 
+                  BETWEEN DATE_SUB(CURDATE(), INTERVAL 1 DAY) + INTERVAL '18:00:00'            HOUR_SECOND AND CURDATE() + INTERVAL '12:15:00' HOUR_SECOND        
+                  END
+                                 )
+
+                 AND r.user_status IN('Active', 'Onhold', 'cleanseactive', 'notstarted')
+                 AND (
+                     (wmr.session < od.program_session
+                     AND r.id NOT IN (
+                         SELECT user_id FROM diet_session_log 
+                         WHERE order_id = wmr.order_id 
+                         AND actual_session = (wmr.session + 1) 
+                         AND diet_status = 4 
+                         AND is_deleted = 0
+                     ))
+                     OR (wmr.session = od.program_session
+                     AND wmr.user_id IN (
+                         SELECT userid FROM order_details 
+                         WHERE program_status = 4
+                     ))
+                 )
+                 AND wmr.session_duration = '10'
+                 AND wmr.is_deleted = '0'
+             GROUP BY r.mentor_id
+         ) AS wmrs ON wmrs.mentor = mentors.mentor
+         LEFT JOIN (
+             SELECT
+                 ash.mentor_name,
+                 COUNT(*) AS NAF
+             FROM (
+                 SELECT
+                     CONCAT(
+                         rg.first_name, ' ', rg.last_name, '<br> <a href=https://www.balancenutrition.in/support_access/client_app_panel?client_id=',
+                         rg.id, ' >', rg.email_id, '</a><br>',
+                         (SELECT billing_details.mobile_no1 FROM billing_details WHERE billing_details.user_id = rg.id LIMIT 1),
+                         '<br><b>', rg.user_status, '</b>'
+                     ) AS client_details,
+                     CONCAT(
+                         od.program_name, '<br>', od.program_session * 10, ' Days<br>Mrp : ', od.prog_amt, ' Paid : ', od.amount,
+                         '<br>Order type : ', od.order_type
+                     ) AS program_details,
+                     CONCAT(DATEDIFF(NOW(), na.created), ' Days Ago') AS days_ago,
+                     (SELECT DATE_FORMAT(created, '%d %b %Y') FROM new_assessment WHERE user_id = od.userid AND DATE(created) >= DATE(od.date) ORDER BY id DESC LIMIT 1) AS assessment_date,
+                     (SELECT first_name FROM admin_user WHERE admin_id = rg.mentor_id) AS mentor_name,
+                     rg.last_visited_screen AS last_visited_screen,
+                     na.id AS naf_id
+                 FROM
+                     (SELECT * FROM order_details WHERE order_id IN (SELECT MAX(order_id) FROM order_details WHERE program_status = '1' GROUP BY userid)) od
+                 LEFT JOIN registries rg ON od.userid = rg.id
+                 LEFT JOIN diet_session_log ds ON ds.order_id = od.order_id
+                 INNER JOIN new_assessment na ON na.user_id = od.userid
+                 WHERE
+                     (ds.diet_status != '4' OR ds.diet_status IS NULL)
+                     AND na.naf_acknowledge = '0'
+                     AND od.order_type IN ('New', 'OMR')
+                     AND (SELECT COUNT(diet_id) FROM diet_session_log WHERE order_id = od.order_id AND diet_status = 4 AND is_deleted = 0) = 0
+                     AND rg.user_status NOT IN ('dormant', 'dropout', 'completed', 'fs')
+                     AND rg.last_visited_screen NOT IN ('assessment/1', 'program-details')
+                     AND od.mentor_id != 196
+                 GROUP BY rg.id
+                 ORDER BY na.created ASC
+             ) AS ash
+             GROUP BY ash.mentor_name
+         ) AS nafs ON nafs.mentor_name = mentors.mentor
+         LEFT JOIN (
+             SELECT
+                 (SELECT first_name FROM admin_user WHERE admin_id = rg.mentor_id) AS mentor,
+                 COUNT(od.mentor_id) AS NotStarted
+             FROM
+                 order_details od
+             INNER JOIN registries rg ON rg.id = od.userid AND rg.user_status = 'notstarted'
+             WHERE
+                 od.program_status IN (1, 4)
+                 AND DATE(start_date) = CURDATE()
+             GROUP BY rg.mentor_id
+         ) AS notstarteds ON notstarteds.mentor = mentors.mentor
+         LEFT JOIN (
+             SELECT
+                 (SELECT first_name FROM admin_user WHERE admin_id = r.mentor_id) AS mentor,
+                 COUNT(r.mentor_id) AS Diet_OD
+             FROM
+                 registries r
+             LEFT JOIN (
+                 SELECT
+                     m1.session,
+                     m1.order_id,
+                     m1.user_id,
+                     m1.wmr_id,
+                     m1.session_duration,
+                     m1.is_deleted,
+                     m1.added_date,
+                     m1.posted_date
+                 FROM
+                     weight_monitor_record_22 m1
+                 LEFT JOIN weight_monitor_record_22 m2 ON (
+                     m1.user_id = m2.user_id
+                     AND m1.wmr_id < m2.wmr_id
+                     AND m1.diet_id = m2.diet_id
+                 )
+                 WHERE
+                     m2.wmr_id IS NULL
+                     AND m1.session_duration = 10
+                     AND m1.is_deleted = 0
+             ) wmr ON wmr.user_id = r.id
+             LEFT JOIN order_details od ON wmr.order_id = od.order_id
+             WHERE
+                 od.program_status = 1
+                 AND wmr.posted_date BETWEEN 
+                  DATE_SUB(CURDATE(), INTERVAL 2 DAY) 
+                           + INTERVAL '18:00:00' HOUR_SECOND
+                           AND
+                            DATE_SUB(CURDATE(), INTERVAL 1 DAY) 
+                           + INTERVAL '17:59:59' HOUR_SECOND
+                 AND r.user_status IN ('Active', 'cleanseactive')
+                 AND (
+                     (wmr.session < od.program_session
+                     AND r.id NOT IN (
+                         SELECT user_id FROM diet_session_log
+                         WHERE order_id = wmr.order_id
+                         AND actual_session = (wmr.session + 1)
+                         AND diet_status = 4
+                         AND is_deleted = 0
+                     ))
+                     OR (wmr.session = od.program_session
+                     AND wmr.user_id IN (
+                         SELECT userid FROM order_details WHERE program_status = 4
+                     ))
+                 )
+                 AND wmr.session_duration = '10'
+                 AND wmr.is_deleted = '0'
+             GROUP BY r.mentor_id
+         ) AS yesterday_diet_ods ON yesterday_diet_ods.mentor = mentors.mentor
+         LEFT JOIN (
+             SELECT
+                 (SELECT first_name FROM admin_user WHERE admin_id = r.mentor_id) AS mentor,
+                 COUNT(r.mentor_id) AS Diet_OD
+             FROM
+                 registries r
+             LEFT JOIN (
+                 SELECT
+                     m1.session,
+                     m1.order_id,
+                     m1.user_id,
+                     m1.wmr_id,
+                     m1.session_duration,
+                     m1.is_deleted,
+                     m1.added_date,
+                     m1.posted_date
+                 FROM
+                     weight_monitor_record_22 m1
+                 LEFT JOIN weight_monitor_record_22 m2 ON (
+                     m1.user_id = m2.user_id
+                     AND m1.wmr_id < m2.wmr_id
+                     AND m1.diet_id = m2.diet_id
+                 )
+                 WHERE
+                     m2.wmr_id IS NULL
+                     AND m1.session_duration = 10
+                     AND m1.is_deleted = 0
+             ) wmr ON wmr.user_id = r.id
+             LEFT JOIN order_details od ON wmr.order_id = od.order_id
+             WHERE
+                 od.program_status = 1
+                 AND wmr.posted_date < DATE_SUB(CURDATE(), INTERVAL 2 DAY) 
+                           + INTERVAL '18:00:00' HOUR_SECOND
+                 AND r.user_status IN ('Active', 'cleanseactive')
+                 AND (
+                     (wmr.session < od.program_session
+                     AND r.id NOT IN (
+                         SELECT user_id FROM diet_session_log
+                         WHERE order_id = wmr.order_id
+                         AND actual_session = (wmr.session + 1)
+                         AND diet_status = 4
+                         AND is_deleted = 0
+                     ))
+                     OR (wmr.session = od.program_session
+                     AND wmr.user_id IN (
+                         SELECT userid FROM order_details WHERE program_status = 4
+                     ))
+                 )
+                 AND wmr.session_duration = '10'
+                 AND wmr.is_deleted = '0'
+             GROUP BY r.mentor_id
+         ) AS saturday_diet_ods ON saturday_diet_ods.mentor = mentors.mentor
+         LEFT JOIN (
+             SELECT
+                 (SELECT first_name FROM admin_user WHERE admin_id = r.mentor_id) AS mentor,
+                 COUNT(r.mentor_id) AS OnholdOD
+             FROM
+                 registries r
+             LEFT JOIN (
+                 SELECT
+                     m1.session,
+                     m1.order_id,
+                     m1.user_id,
+                     m1.wmr_id,
+                     m1.session_duration,
+                     m1.is_deleted,
+                     m1.added_date,
+                     m1.posted_date
+                 FROM
+                     weight_monitor_record_22 m1
+                 LEFT JOIN weight_monitor_record_22 m2 ON (
+                     m1.user_id = m2.user_id
+                     AND m1.wmr_id < m2.wmr_id
+                     AND m1.diet_id = m2.diet_id
+                 )
+                 WHERE
+                     m2.wmr_id IS NULL
+                     AND m1.session_duration = 10
+                     AND m1.is_deleted = 0
+             ) wmr ON wmr.user_id = r.id
+             LEFT JOIN order_details od ON wmr.order_id = od.order_id
+             LEFT JOIN onhold_clients oc1 ON oc1.user_id = r.id
+             LEFT JOIN onhold_clients oc2 ON oc1.user_id = oc2.user_id AND oc1.id < oc2.id
+             WHERE
+                 oc2.id IS NULL
+                 AND od.program_status = 1
+                 AND r.user_status IN ('Onhold')
+                 AND DATE(oc1.end_date) >= CURDATE()
+                 AND DATE(wmr.added_date) <= DATE(NOW() - INTERVAL 1 DAY)
+                 AND (
+                     (wmr.session < od.program_session
+                     AND r.id NOT IN (
+                         SELECT user_id FROM diet_session_log
+                         WHERE order_id = wmr.order_id
+                         AND actual_session = (wmr.session + 1)
+                         AND diet_status = 4
+                         AND is_deleted = 0
+                     ))
+                     OR (wmr.session = od.program_session
+                     AND wmr.user_id IN (
+                         SELECT userid FROM order_details WHERE program_status = 4
+                     ))
+                 )
+                 AND wmr.session_duration = '10'
+                 AND wmr.is_deleted = '0'
+             GROUP BY r.mentor_id
+         ) AS onhold_ods ON onhold_ods.mentor = mentors.mentor
+
+         LEFT JOIN (SELECT mentor, COUNT(*) AS pitched FROM (SELECT m1.user_id, 
+         (case WHEN m1.user_id!=0 THEN m1.`name`
+         ELSE (
+         SELECT CONCAT(fname, ' ', lname)
+         FROM `lead_management`
+         WHERE `email`=m1.email_id
+         ORDER BY id DESC
+         LIMIT 1) END) AS Name,
+
+         (case WHEN m1.user_id!=0 THEN (
+         SELECT CONCAT("''", mobile_no1)
+         FROM `billing_details`
+         WHERE `user_id` = m1.user_id
+         ORDER BY billing_id DESC
+         LIMIT 1) ELSE (
+         SELECT CONCAT("''", phone)
+         FROM `lead_management`
+         WHERE `email`=m1.email_id
+         ORDER BY id DESC
+         LIMIT 1) END) AS phone,
+         m1.email_id,
+         (SELECT my_wallet FROM registries WHERE id = m1.user_id) AS my_wallet,
+         (SELECT old_wallet FROM registries WHERE id = m1.user_id) AS old_wallet,
+         m1.suggested_program, 
+         m1.sessions AS days, m1.amount, 
+         DATE(m1.added_date) AS pitched_date,
+         (
+         SELECT first_name
+         FROM admin_user
+         WHERE admin_id = m1.mentor_id) AS mentor, 
+         Case when (
+         SELECT user_status
+         FROM registries
+         WHERE email_id = m1.email_id LIMIT 1) IN ('Active', 'notstarted', 'cleanseactive', 'Dormant', 'Onhold') then 'Active' WHEN (
+         SELECT user_status
+         FROM registries
+         WHERE email_id = m1.email_id LIMIT 1) IN ('Dropouts', 'Completeds', 'fs', 'Completed', 'Dropout', 'Dropoutss', 'Completedss') THEN 'OCR' ELSE 'Lead' END AS user_status, 
+         m1.payment_mode, 
+         m1.payment_link
+         FROM bn_suggested_program m1
+
+         WHERE 
+         DATE(m1.added_date) >= DATE(NOW() - INTERVAL 2 DAY)) AS sheet
+         GROUP BY mentor
+
+         ) AS pitch_count
+         ON mentors.mentor = pitch_count.mentor
+         GROUP BY mentors.mentor;
+    '''
+    return query
+
+  def dietCountSummaryOther(self):
+    query = f'''
+          SELECT
+              mentors.mentor as Mentor,
+              COALESCE(wmrs.WMR, 0) AS WMR,
+              COALESCE(nafs.NAF, 0) AS NAF,
+              COALESCE(notstarteds.NotStarted, 0) AS NotStarted,
+              COALESCE(diet_ods.Diet_OD, 0) AS Diet_OD,
+              COALESCE(onhold_ods.OnholdOD, 0) AS OnholdOD,
+              COALESCE(pitch_count.pitched, 0) AS yesterday_pitched
+          FROM
+              (
+                  SELECT
+                      first_name AS mentor
+                  FROM
+                      admin_user
+                   WHERE admin_id in (SELECT DISTINCT mentor_id FROM registries WHERE mentor_id NOT IN (209, 196, 0, 246, 10, 268, 263, 226))
+              ) AS mentors
+          LEFT JOIN (
+              SELECT
+                  (SELECT first_name FROM admin_user WHERE admin_id = r.mentor_id) AS mentor,
+                  COUNT(r.mentor_id) AS WMR
+              FROM
+                  registries r
+              LEFT JOIN (
+                  SELECT
+                      m1.session,
+                      m1.order_id,
+                      m1.user_id,
+                      m1.wmr_id,
+                      m1.session_duration,
+                      m1.is_deleted,
+                      m1.added_date,
+                      m1.posted_date
+                  FROM
+                      weight_monitor_record_22 m1
+                  LEFT JOIN weight_monitor_record_22 m2 ON (
+                      m1.user_id = m2.user_id
+                      AND m1.wmr_id < m2.wmr_id
+                      AND m1.diet_id = m2.diet_id
+                  )
+                  WHERE
+                      m2.wmr_id IS NULL
+                      AND m1.session_duration = 10
+                      AND m1.is_deleted = 0
+              ) wmr ON wmr.user_id = r.id
+              LEFT JOIN order_details od ON wmr.order_id = od.order_id
+              WHERE
+                  od.program_status = 1
+                   AND 
+                                  (CASE                         
+                                  WHEN TIME(NOW()) BETWEEN '12:00:00' AND '15:00:00'  THEN
+                                  wmr.added_date 
+                   BETWEEN DATE_SUB(CURDATE(), INTERVAL 1 DAY) + INTERVAL '18:00:00'            HOUR_SECOND AND CURDATE() + INTERVAL '12:15:00' HOUR_SECOND         
+                   WHEN TIME(NOW()) BETWEEN '16:00:00' AND '19:00:00' THEN
+                   wmr.added_date 
+                   BETWEEN DATE_SUB(CURDATE(), INTERVAL 1 DAY) + INTERVAL '18:00:00'            HOUR_SECOND AND CURDATE() + INTERVAL '16:15:00' HOUR_SECOND
+                   ELSE
+                   wmr.added_date 
+                   BETWEEN DATE_SUB(CURDATE(), INTERVAL 1 DAY) + INTERVAL '18:00:00'            HOUR_SECOND AND CURDATE() + INTERVAL '12:15:00' HOUR_SECOND        
+                   END
+                                  )
+
+                  AND r.user_status IN('Active', 'Onhold', 'cleanseactive', 'notstarted')
+                  AND (
+                      (wmr.session < od.program_session
+                      AND r.id NOT IN (
+                          SELECT user_id FROM diet_session_log 
+                          WHERE order_id = wmr.order_id 
+                          AND actual_session = (wmr.session + 1) 
+                          AND diet_status = 4 
+                          AND is_deleted = 0
+                      ))
+                      OR (wmr.session = od.program_session
+                      AND wmr.user_id IN (
+                          SELECT userid FROM order_details 
+                          WHERE program_status = 4
+                      ))
+                  )
+                  AND wmr.session_duration = '10'
+                  AND wmr.is_deleted = '0'
+              GROUP BY r.mentor_id
+          ) AS wmrs ON wmrs.mentor = mentors.mentor
+          LEFT JOIN (
+              SELECT
+                  ash.mentor_name,
+                  COUNT(*) AS NAF
+              FROM (
+                  SELECT
+                      CONCAT(
+                          rg.first_name, ' ', rg.last_name, '<br> <a href=https://www.balancenutrition.in/support_access/client_app_panel?client_id=',
+                          rg.id, ' >', rg.email_id, '</a><br>',
+                          (SELECT billing_details.mobile_no1 FROM billing_details WHERE billing_details.user_id = rg.id LIMIT 1),
+                          '<br><b>', rg.user_status, '</b>'
+                      ) AS client_details,
+                      CONCAT(
+                          od.program_name, '<br>', od.program_session * 10, ' Days<br>Mrp : ', od.prog_amt, ' Paid : ', od.amount,
+                          '<br>Order type : ', od.order_type
+                      ) AS program_details,
+                      CONCAT(DATEDIFF(NOW(), na.created), ' Days Ago') AS days_ago,
+                      (SELECT DATE_FORMAT(created, '%d %b %Y') FROM new_assessment WHERE user_id = od.userid AND DATE(created) >= DATE(od.date) ORDER BY id DESC LIMIT 1) AS assessment_date,
+                      (SELECT first_name FROM admin_user WHERE admin_id = rg.mentor_id) AS mentor_name,
+                      rg.last_visited_screen AS last_visited_screen,
+                      na.id AS naf_id
+                  FROM
+                      (SELECT * FROM order_details WHERE order_id IN (SELECT MAX(order_id) FROM order_details WHERE program_status = '1' GROUP BY userid)) od
+                  LEFT JOIN registries rg ON od.userid = rg.id
+                  LEFT JOIN diet_session_log ds ON ds.order_id = od.order_id
+                  INNER JOIN new_assessment na ON na.user_id = od.userid
+                  WHERE
+                      (ds.diet_status != '4' OR ds.diet_status IS NULL)
+                      AND na.naf_acknowledge = '0'
+                      AND od.order_type IN ('New', 'OMR')
+                      AND (SELECT COUNT(diet_id) FROM diet_session_log WHERE order_id = od.order_id AND diet_status = 4 AND is_deleted = 0) = 0
+                      AND rg.user_status NOT IN ('dormant', 'dropout', 'completed', 'fs')
+                      AND rg.last_visited_screen NOT IN ('assessment/1', 'program-details')
+                      AND od.mentor_id != 196
+                  GROUP BY rg.id
+                  ORDER BY na.created ASC
+              ) AS ash
+              GROUP BY ash.mentor_name
+          ) AS nafs ON nafs.mentor_name = mentors.mentor
+          LEFT JOIN (
+              SELECT
+                  (SELECT first_name FROM admin_user WHERE admin_id = rg.mentor_id) AS mentor,
+                  COUNT(od.mentor_id) AS NotStarted
+              FROM
+                  order_details od
+              INNER JOIN registries rg ON rg.id = od.userid AND rg.user_status = 'notstarted'
+              WHERE
+                  od.program_status IN (1, 4)
+                  AND DATE(start_date) = CURDATE()
+              GROUP BY rg.mentor_id
+          ) AS notstarteds ON notstarteds.mentor = mentors.mentor
+          LEFT JOIN (
+              SELECT
+                  (SELECT first_name FROM admin_user WHERE admin_id = r.mentor_id) AS mentor,
+                  COUNT(r.mentor_id) AS Diet_OD
+              FROM
+                  registries r
+              LEFT JOIN (
+                  SELECT
+                      m1.session,
+                      m1.order_id,
+                      m1.user_id,
+                      m1.wmr_id,
+                      m1.session_duration,
+                      m1.is_deleted,
+                      m1.added_date,
+                      m1.posted_date
+                  FROM
+                      weight_monitor_record_22 m1
+                  LEFT JOIN weight_monitor_record_22 m2 ON (
+                      m1.user_id = m2.user_id
+                      AND m1.wmr_id < m2.wmr_id
+                      AND m1.diet_id = m2.diet_id
+                  )
+                  WHERE
+                      m2.wmr_id IS NULL
+                      AND m1.session_duration = 10
+                      AND m1.is_deleted = 0
+              ) wmr ON wmr.user_id = r.id
+              LEFT JOIN order_details od ON wmr.order_id = od.order_id
+              WHERE
+                  od.program_status = 1
+                  AND wmr.posted_date < DATE_SUB(CURDATE(), INTERVAL 1 DAY) 
+                            + INTERVAL '18:00:00' HOUR_SECOND
+                  AND r.user_status IN ('Active', 'cleanseactive')
+                  AND (
+                      (wmr.session < od.program_session
+                      AND r.id NOT IN (
+                          SELECT user_id FROM diet_session_log
+                          WHERE order_id = wmr.order_id
+                          AND actual_session = (wmr.session + 1)
+                          AND diet_status = 4
+                          AND is_deleted = 0
+                      ))
+                      OR (wmr.session = od.program_session
+                      AND wmr.user_id IN (
+                          SELECT userid FROM order_details WHERE program_status = 4
+                      ))
+                  )
+                  AND wmr.session_duration = '10'
+                  AND wmr.is_deleted = '0'
+              GROUP BY r.mentor_id
+          ) AS diet_ods ON diet_ods.mentor = mentors.mentor
+          LEFT JOIN (
+              SELECT
+                  (SELECT first_name FROM admin_user WHERE admin_id = r.mentor_id) AS mentor,
+                  COUNT(r.mentor_id) AS OnholdOD
+              FROM
+                  registries r
+              LEFT JOIN (
+                  SELECT
+                      m1.session,
+                      m1.order_id,
+                      m1.user_id,
+                      m1.wmr_id,
+                      m1.session_duration,
+                      m1.is_deleted,
+                      m1.added_date,
+                      m1.posted_date
+                  FROM
+                      weight_monitor_record_22 m1
+                  LEFT JOIN weight_monitor_record_22 m2 ON (
+                      m1.user_id = m2.user_id
+                      AND m1.wmr_id < m2.wmr_id
+                      AND m1.diet_id = m2.diet_id
+                  )
+                  WHERE
+                      m2.wmr_id IS NULL
+                      AND m1.session_duration = 10
+                      AND m1.is_deleted = 0
+              ) wmr ON wmr.user_id = r.id
+              LEFT JOIN order_details od ON wmr.order_id = od.order_id
+              LEFT JOIN onhold_clients oc1 ON oc1.user_id = r.id
+              LEFT JOIN onhold_clients oc2 ON oc1.user_id = oc2.user_id AND oc1.id < oc2.id
+              WHERE
+                  oc2.id IS NULL
+                  AND od.program_status = 1
+                  AND r.user_status IN ('Onhold')
+                  AND DATE(oc1.end_date) >= CURDATE()
+                  AND DATE(wmr.added_date) <= DATE(NOW() - INTERVAL 1 DAY)
+                  AND (
+                      (wmr.session < od.program_session
+                      AND r.id NOT IN (
+                          SELECT user_id FROM diet_session_log
+                          WHERE order_id = wmr.order_id
+                          AND actual_session = (wmr.session + 1)
+                          AND diet_status = 4
+                          AND is_deleted = 0
+                      ))
+                      OR (wmr.session = od.program_session
+                      AND wmr.user_id IN (
+                          SELECT userid FROM order_details WHERE program_status = 4
+                      ))
+                  )
+                  AND wmr.session_duration = '10'
+                  AND wmr.is_deleted = '0'
+              GROUP BY r.mentor_id
+          ) AS onhold_ods ON onhold_ods.mentor = mentors.mentor
+
+          LEFT JOIN (SELECT mentor, COUNT(*) AS pitched FROM (SELECT m1.user_id, 
+          (case WHEN m1.user_id!=0 THEN m1.`name`
+          ELSE (
+          SELECT CONCAT(fname, ' ', lname)
+          FROM `lead_management`
+          WHERE `email`=m1.email_id
+          ORDER BY id DESC
+          LIMIT 1) END) AS Name,
+
+          (case WHEN m1.user_id!=0 THEN (
+          SELECT CONCAT("''", mobile_no1)
+          FROM `billing_details`
+          WHERE `user_id` = m1.user_id
+          ORDER BY billing_id DESC
+          LIMIT 1) ELSE (
+          SELECT CONCAT("''", phone)
+          FROM `lead_management`
+          WHERE `email`=m1.email_id
+          ORDER BY id DESC
+          LIMIT 1) END) AS phone,
+          m1.email_id,
+          (SELECT my_wallet FROM registries WHERE id = m1.user_id) AS my_wallet,
+          (SELECT old_wallet FROM registries WHERE id = m1.user_id) AS old_wallet,
+          m1.suggested_program, 
+          m1.sessions AS days, m1.amount, 
+          DATE(m1.added_date) AS pitched_date,
+          (
+          SELECT first_name
+          FROM admin_user
+          WHERE admin_id = m1.mentor_id) AS mentor, 
+          Case when (
+          SELECT user_status
+          FROM registries
+          WHERE email_id = m1.email_id LIMIT 1) IN ('Active', 'notstarted', 'cleanseactive', 'Dormant', 'Onhold') then 'Active' WHEN (
+          SELECT user_status
+          FROM registries
+          WHERE email_id = m1.email_id LIMIT 1) IN ('Dropouts', 'Completeds', 'fs', 'Completed', 'Dropout', 'Dropoutss', 'Completedss') THEN 'OCR' ELSE 'Lead' END AS user_status, 
+          m1.payment_mode, 
+          m1.payment_link
+          FROM bn_suggested_program m1
+
+          WHERE 
+          DATE(m1.added_date) = DATE(NOW() - INTERVAL 1 DAY)) AS sheet
+          GROUP BY mentor
+
+          ) AS pitch_count
+          ON mentors.mentor = pitch_count.mentor
+          GROUP BY mentors.mentor;
+    '''
+    return query
     
   def halfTimeFeedbackSummaryQuery(self):
     query = f'''
@@ -1342,7 +1985,7 @@ class summaryQueries:
         ) AS sheet                                                     
         GROUP BY assignedTo 
 
-        HAVING `Name` IN ("Akansha", "Krishna", "UrmilaR", "PrajaktaT", "Deeba", "Vidhanshi", 'Barkha', 'KajalS')    
+        HAVING `Name` IN ("Akansha", "Krishna", "UrmilaR", "PrajaktaT", 'Barkha', 'KajalS')    
         ORDER BY Assigned DESC  
 
 
@@ -1385,6 +2028,18 @@ class summaryQueries:
     '''
     return query
 
+  def consultationCallBookedYesterdayTotal(self):
+    query = f'''
+    SELECT COUNT(*) AS total_calls FROM bn_consultation_call_booking bcc WHERE DATE(bcc.added_date) = CASE WHEN DAYOFWEEK(NOW()) = 2 THEN DATE(NOW() - INTERVAL 2 DAY) ELSE DATE(NOW() - INTERVAL 1 DAY) END AND DATE(bcc.call_date) >= CASE WHEN DAYOFWEEK(NOW()) = 2 THEN DATE(NOW() - INTERVAL 2 DAY) ELSE DATE(NOW() - INTERVAL 1 DAY) END AND bcc.`source` LIKE '%sales d%';
+    '''
+    return query
+
+  def consultationCallBookedYesterdayTotalSplit(self):
+    query = f'''
+    SELECT GROUP_CONCAT(calls,' <br>') as calls FROM (SELECT concat(Counsellor,' - ',total_calls) as calls, "call" from ( SELECT DISTINCT(au.first_name) AS Counsellor, COUNT(*) AS total_calls FROM bn_consultation_call_booking bcc LEFT JOIN admin_user au ON au.admin_id = bcc.counsellor_id WHERE DATE(bcc.added_date) = CASE WHEN DAYOFWEEK(NOW()) = 2 THEN DATE(NOW() - INTERVAL 2 DAY) ELSE DATE(NOW() - INTERVAL 1 DAY) END AND DATE(bcc.call_date) >= CASE WHEN DAYOFWEEK(NOW()) = 2 THEN DATE(NOW() - INTERVAL 2 DAY) ELSE DATE(NOW() - INTERVAL 1 DAY) END AND bcc.`source` LIKE '%sales d%' AND bcc.counsellor_id in (SELECT admin_id FROM `admin_user` WHERE `report_sales` = 1) GROUP by bcc.counsellor_id) as a) as b GROUP by b.call;
+    '''
+    return query
+    
   def consultationCallBookedYesterdayByLeads(self):
     query = f'''
         SELECT
